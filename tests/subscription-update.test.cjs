@@ -28,6 +28,13 @@ test('direct fetch keeps a stopped HomeProxy on the native WAN path', () => {
   assert.match(source, /subscription\.log/);
 });
 
+test('updater always logs startup and never restarts HomeProxy after a fetch error', () => {
+  assert.match(source, /Updater started: selected=%s, eligible_sources=%s/);
+  const trailer = source.slice(source.lastIndexOf("if (!isEmpty(sources))"));
+  assert.doesNotMatch(trailer, /init_action\('homeproxy'/);
+  assert.match(trailer, /No enabled subscription source matched/);
+});
+
 function extract(name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);

@@ -121,6 +121,7 @@ function log(...args) {
 	logfile.write(`${getTime()} [SUBSCRIBE] ${join(' ', args)}\n`);
 	logfile.close();
 }
+log(sprintf('Updater started: selected=%s, eligible_sources=%s.', selectedSource || 'all', length(sources)));
 
 function parse_singbox_outbound(ob, companion_map) {
 	const proxy_types = ['vless', 'vmess', 'trojan', 'shadowsocks', 'naive',
@@ -1442,10 +1443,12 @@ if (!isEmpty(sources))
 			exit(1);
 	} catch(e) {
 		log('[FATAL ERROR] An error occurred during updating subscriptions:');
-		log(sprintf('%s: %s', e.type, e.message));
-		log(e.stacktrace[0].context);
-
-		log('Restarting service...');
-		init_action('homeproxy', 'stop');
-		init_action('homeproxy', 'start');
+		log(sprintf('%s: %s', e.type || 'Error', e.message || e));
+		if (e.stacktrace && e.stacktrace[0])
+			log(e.stacktrace[0].context);
+		exit(1);
 	}
+else {
+	log('No enabled subscription source matched this update request.');
+	exit(1);
+}

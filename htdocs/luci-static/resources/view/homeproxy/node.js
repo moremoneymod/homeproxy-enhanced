@@ -2239,14 +2239,28 @@ return view.extend({
 			let group = hp.calcStringMD5('source:' + section_id);
 			return String(uci.sections(data[0], 'node').filter(n => n.grouphash === group).length);
 		};
+		let showSubscriptionLog = function(error, reloadOnClose) {
+			return L.resolveDefault(fs.read_direct('/var/run/homeproxy/subscription.log', 'text'), '')
+				.then(content => ui.showModal(error ? _('Subscription update failed') : _('Subscription update result'), [
+					error ? E('p', { class: 'alert-message error' }, String(error)) : null,
+					E('pre', { style: 'max-height:60vh;overflow:auto;white-space:pre-wrap' },
+						(content || _('The updater produced no log output.')).split('\n').slice(-200).join('\n')),
+					E('div', { class: 'right' }, [
+						E('button', { class: 'btn', click: function() {
+							ui.hideModal();
+							if (reloadOnClose) location.reload();
+						} }, _('Close'))
+					])
+				]));
+		};
 		sourceOption = sourceSection.option(form.Button, '_update_source', _('Update source'));
 		sourceOption.inputtitle = _('Update now');
 		sourceOption.description = _('Save source settings before updating.');
 		sourceOption.onclick = function(section_id) {
 			ui.showModal(_('Updating subscription'), [E('p', { class: 'spinning' }, _('Fetching nodes, please wait...'))]);
 			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.uc', [section_id])
-				.then(() => location.reload())
-				.catch(err => { ui.hideModal(); ui.addNotification(null, E('p', String(err))); });
+				.then(() => showSubscriptionLog(null, true))
+				.catch(err => showSubscriptionLog(err, false));
 		};
 		sourceOption = sourceSection.option(form.DynamicList, 'headers', _('HTTP headers'));
 		sourceOption.description = _('One header per line, as Name: value (for example x-hwid: your-id). Header values may contain secrets.');
@@ -2334,27 +2348,16 @@ return view.extend({
 				E('p', { 'class': 'spinning' }, _('Fetching nodes, please wait...'))
 			]);
 
-			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.uc').then(() => {
-				return location.reload();
-			}).catch((err) => {
-				ui.hideModal();
-				ui.addNotification(null, E('p', _('An error occurred during updating subscriptions: %s').format(err)));
-				return this.map.reset();
-			});
+			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.uc')
+				.then(() => showSubscriptionLog(null, true))
+				.catch(err => showSubscriptionLog(err, false));
 		}
 
 		o = s.taboption('subscription', form.Button, '_subscription_log', _('Subscription log'));
 		o.inputtitle = _('View log');
 		o.inputstyle = 'action';
 		o.onclick = function() {
-			return L.resolveDefault(fs.read_direct('/var/run/homeproxy/subscription.log', 'text'), '')
-				.then(content => ui.showModal(_('Subscription log'), [
-					E('pre', { style: 'max-height:60vh;overflow:auto;white-space:pre-wrap' },
-						(content || _('The log is empty.')).split('\n').slice(-200).join('\n')),
-					E('div', { class: 'right' }, [
-						E('button', { class: 'btn', click: ui.hideModal }, _('Close'))
-					])
-				]));
+			return showSubscriptionLog(null, false);
 		};
 
 		o = s.taboption('subscription', form.Button, '_remove_subscriptions', _('Remove all nodes from subscriptions'));
