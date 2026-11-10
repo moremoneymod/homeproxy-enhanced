@@ -53,7 +53,15 @@ if [ "$MODE" = direct ]; then
 			fi
 		done
 	fi
-	[ "$direct_ready" -eq 1 ] || { echo 'stage=route error=direct_set_unavailable' >&2; exit 4; }
+	if [ "$direct_ready" -ne 1 ]; then
+		# No HomeProxy firewall means there is nothing to bypass: this is already a
+		# native WAN request (common before the first subscription imports a node).
+		if pgrep -f '/usr/bin/hiddify-core' >/dev/null 2>&1 || pgrep -f '/usr/bin/sing-box' >/dev/null 2>&1; then
+			echo 'stage=route error=direct_set_unavailable' >&2
+			exit 4
+		fi
+		MODE=direct-native
+	fi
 fi
 
 set -- /usr/bin/wget -S -O "$TMP.body" --user-agent "$UA" --timeout=35 "$@" "$URL"

@@ -2347,7 +2347,7 @@ return view.extend({
 		o.inputtitle = _('View log');
 		o.inputstyle = 'action';
 		o.onclick = function() {
-			return L.resolveDefault(fs.read_direct('/var/run/homeproxy/homeproxy.log', 'text'), '')
+			return L.resolveDefault(fs.read_direct('/var/run/homeproxy/subscription.log', 'text'), '')
 				.then(content => ui.showModal(_('Subscription log'), [
 					E('pre', { style: 'max-height:60vh;overflow:auto;white-space:pre-wrap' },
 						(content || _('The log is empty.')).split('\n').slice(-200).join('\n')),

@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.uc'), 'utf8');
 const nodeView = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-static/resources/view/homeproxy/node.js'), 'utf8');
+const fetchHelper = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/fetch_subscription.sh'), 'utf8');
 
 test('named sources use a persisted v2rayNG User-Agent by default', () => {
   assert.match(source, /source\.user_agent \|\| 'v2rayNG\/1\.10\.5'/);
@@ -19,6 +20,12 @@ test('named sources default to direct provider downloads with provider-compatibl
   assert.match(source, /Accept: application\/json, text\/plain, \*\/\*/);
   assert.match(nodeView, /sourceOption\.value\('direct', _\('Internet provider \(direct\)'\)\)/);
   assert.match(nodeView, /sourceOption\.default = 'direct'/);
+});
+
+test('direct fetch keeps a stopped HomeProxy on the native WAN path', () => {
+  assert.match(fetchHelper, /MODE=direct-native/);
+  assert.doesNotMatch(fetchHelper, /init\.d\/homeproxy (stop|start)/);
+  assert.match(source, /subscription\.log/);
 });
 
 function extract(name) {
