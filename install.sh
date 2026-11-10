@@ -167,6 +167,10 @@ echo "    2) sing-box-extended  (AmneziaWG / WARP, самый широкий н�
 ask "  Выбор [1/2] (по умолчанию 1):"
 case "$REPLY" in 2) CORE=singbox ;; *) CORE=hiddify ;; esac
 
+if [ "$CORE" = hiddify ] && [ -x /usr/bin/hiddify-core ]; then
+	ok "  hiddify-core уже установлен — пропускаю загрузку."
+	jtrue "$(ucode "$CM" install_kmods "$PMG")" || warn "  не удалось поставить kmod-nft-tproxy/kmod-tun."
+else
 PREP=$(ucode "$CM" prepare_install "$CORE")
 jerr "$PREP" && die "  подготовка ядра не удалась: $(jget "$PREP" error)"
 DLURL=$(jget "$PREP" dl_url); TMP=$(jget "$PREP" tmp_path); PMG=$(jget "$PREP" pkg_manager)
@@ -176,6 +180,7 @@ jtrue "$(ucode "$CM" download_pkg "$DLURL" "$TMP")" || die "  не удалос�
 jtrue "$(ucode "$CM" install_pkg "$CORE" "$TMP" "$PMG")" || die "  установка ядра не удалась."
 jtrue "$(ucode "$CM" install_kmods "$PMG")" || warn "  не удалось поставить kmod — без kmod-nft-tproxy/kmod-tun прокси не будет маршрутизировать."
 ok "  $CORE установлен."
+fi
 
 # --------------------------------------------------------------- 3. Zapret (опционально)
 ask "[3/5] Установить Zapret 2 (обход DPI на уровне пакетов — видео/QUIC, звонки)? [y/N]:"
