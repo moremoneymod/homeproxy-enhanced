@@ -38,6 +38,12 @@ test('direct fetch falls back to the WAN DNS when resolveip is unavailable', () 
   assert.match(fetchHelper, /stage=resolve dns=/);
 });
 
+test('fetch helper creates the response file before wget and records bounded stderr', () => {
+  assert.match(fetchHelper, /: > "\$TMP\.body"/);
+  assert.match(fetchHelper, /detail=\$detail/);
+  assert.match(fetchHelper, /cut -c1-300/);
+});
+
 test('updater always logs startup and never restarts HomeProxy after a fetch error', () => {
   assert.match(source, /Updater started: selected=%s, eligible_sources=%s/);
   const trailer = source.slice(source.lastIndexOf("if (!isEmpty(sources))"));

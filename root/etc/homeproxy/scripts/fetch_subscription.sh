@@ -91,12 +91,14 @@ if [ "$MODE" = direct ]; then
 	fi
 fi
 
+ : > "$TMP.body"
 set -- /usr/bin/wget -S -O "$TMP.body" --user-agent "$UA" --timeout=35 "$@" "$URL"
 "$@" 2>"$TMP.headers"
 rc=$?
 status=$(sed -n 's/^[[:space:]]*HTTP\/[0-9.]* \([0-9][0-9][0-9]\).*/\1/p' "$TMP.headers" | tail -1)
 bytes=$(wc -c < "$TMP.body" 2>/dev/null || echo 0)
 [ -n "$status" ] || status=unknown
-echo "stage=http route=$MODE status=$status wget_exit=$rc bytes=$bytes" >&2
+detail=$(tr '\r\n' '  ' < "$TMP.headers" 2>/dev/null | sed "s#$(printf '%s' "$URL" | sed 's/[.[\*^$()+?{|]/\\&/g')#<redacted>#g" | cut -c1-300)
+echo "stage=http route=$MODE status=$status wget_exit=$rc bytes=$bytes detail=$detail" >&2
 [ "$rc" -eq 0 ] || exit "$rc"
 cat "$TMP.body"
