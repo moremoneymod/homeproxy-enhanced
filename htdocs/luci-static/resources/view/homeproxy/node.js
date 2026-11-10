@@ -2343,6 +2343,20 @@ return view.extend({
 			});
 		}
 
+		o = s.taboption('subscription', form.Button, '_subscription_log', _('Subscription log'));
+		o.inputtitle = _('View log');
+		o.inputstyle = 'action';
+		o.onclick = function() {
+			return L.resolveDefault(fs.read_direct('/var/run/homeproxy/homeproxy.log', 'text'), '')
+				.then(content => ui.showModal(_('Subscription log'), [
+					E('pre', { style: 'max-height:60vh;overflow:auto;white-space:pre-wrap' },
+						(content || _('The log is empty.')).split('\n').slice(-200).join('\n')),
+					E('div', { class: 'right' }, [
+						E('button', { class: 'btn', click: ui.hideModal }, _('Close'))
+					])
+				]));
+		};
+
 		o = s.taboption('subscription', form.Button, '_remove_subscriptions', _('Remove all nodes from subscriptions'));
 		o.inputstyle = 'reset';
 		o.inputtitle = function() {

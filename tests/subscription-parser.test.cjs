@@ -113,18 +113,22 @@ test('wget helper passes all headers and rejects line injection', () => {
     match: (value, regex) => regex.test(value),
     shellQuote: value => `'${value.replaceAll("'", "'\\''")}'`,
     executeCommand: command => { calls.push(command); return {exitcode: 0, stdout: 'ok'}; },
+    HP_DIR: '/etc/homeproxy',
     trim: value => value.trim(),
     substr: (value, at) => value.slice(at),
     index: (value, needle) => value.indexOf(needle),
   };
   vm.createContext(http);
-  vm.runInContext(adaptUcode(extractFrom(helperSource, 'wGET').replace('export function', 'function')), http);
+  vm.runInContext(adaptUcode([
+    extractFrom(helperSource, 'wGETResult'),
+    extractFrom(helperSource, 'wGET')
+  ].join('\n').replaceAll('export function', 'function')), http);
   assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['x-hwid: synthetic', 'X-Token: a b']), 'ok');
   assert.match(calls[0], /--header 'x-hwid: synthetic'/);
   assert.match(calls[0], /--header 'X-Token: a b'/);
   assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['X-Token: ok\r\nInjected: yes']), null);
   assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['User-Agent: v2rayNG/1.10.5']), 'ok');
-  assert.match(calls[1], /--user-agent 'v2rayNG\/1\.10\.5'/);
+  assert.match(calls[1], /fetch_subscription\.sh 'proxy' '[^']+' 'v2rayNG\/1\.10\.5'/);
   assert.doesNotMatch(calls[1], /--header 'User-Agent:/);
   assert.equal(calls.length, 2);
 });

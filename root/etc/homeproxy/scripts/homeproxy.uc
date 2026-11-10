@@ -69,9 +69,9 @@ export function getTime(epoch) {
 
 };
 
-export function wGET(url, ua, headers) {
+export function wGETResult(url, ua, headers, mode) {
 	if (!url || type(url) !== 'string')
-		return null;
+		return { body: null, exitcode: 2, stderr: 'stage=request error=invalid_url' };
 
 	if (!ua)
 		ua = 'Wget/1.21 (HomeProxy, like v2rayN)';
@@ -81,15 +81,27 @@ export function wGET(url, ua, headers) {
 		/* Header lines are supplied by the user, but must never inject shell options
 		 * or another HTTP header through CR/LF. shellQuote protects the shell. */
 		if (type(header) !== 'string' || !match(header, /^[A-Za-z0-9!#$%&'*+.^_`|~-]+:[^\r\n]*$/))
-			return null;
+			return { body: null, exitcode: 2, stderr: 'stage=request error=invalid_header' };
 		if (match(header, /^User-Agent:/i)) {
 			ua = trim(substr(header, index(header, ':') + 1));
 			continue;
 		}
 		options += ` --header ${shellQuote(header)}`;
 	}
-	const output = executeCommand(`/usr/bin/wget -qO- --user-agent ${shellQuote(ua)}${options} --timeout=35 ${shellQuote(url)}`) || {};
-	return output.exitcode === 0 && !output.too_large && !output.binary ? trim(output.stdout) : null;
+	const output = executeCommand(
+		`${HP_DIR}/scripts/fetch_subscription.sh ${shellQuote(mode || 'proxy')} ${shellQuote(url)} ${shellQuote(ua)}${options}`
+	) || {};
+	return {
+		body: output.exitcode === 0 && !output.too_large && !output.binary ? trim(output.stdout) : null,
+		exitcode: output.exitcode,
+		stderr: trim(output.stderr || ''),
+		too_large: output.too_large,
+		binary: output.binary
+	};
+};
+
+export function wGET(url, ua, headers, mode) {
+	return wGETResult(url, ua, headers, mode).body;
 };
 /* Utilities end */
 

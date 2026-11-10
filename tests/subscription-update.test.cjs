@@ -96,6 +96,11 @@ function harness(response) {
       logs.push(`wget ua=${ua} headers=${JSON.stringify(headers || [])}`);
       return Object.hasOwn(response, url) ? response[url] : response.current;
     },
+    wGETResult: (url, ua, headers, mode) => {
+      logs.push(`wget ua=${ua} headers=${JSON.stringify(headers || [])} mode=${mode}`);
+      return {body: Object.hasOwn(response, url) ? response[url] : response.current,
+        exitcode: 0, stderr: `stage=http route=${mode} status=200 wget_exit=0 bytes=123`};
+    },
     log: message => logs.push(message), init_action: () => {},
     md5: value => crypto.createHash('md5').update(value).digest('hex'),
     isEmpty: value => !value || value === 'nil' || (Array.isArray(value) && !value.length) ||
@@ -146,12 +151,13 @@ test('update imports nodes, keeps ID across label changes, and syncs routing URL
   assert.equal(state.route.urltest_nodes[0], id);
 });
 
-test('direct source stops HomeProxy and sends the provider request contract', () => {
+test('direct source keeps HomeProxy running and sends the provider request contract', () => {
   const {env, logs} = harness({current: JSON.stringify(fixture('Direct'))});
   env.main();
-  assert.ok(logs.includes('Stopping service for direct provider download...'));
+  assert.ok(!logs.some(line => line.includes('Stopping service')));
   assert.ok(logs.some(line => line.includes('wget ua=v2rayNG/1.10.5') &&
-    line.includes('Accept: application/json, text/plain, */*')));
+    line.includes('Accept: application/json, text/plain, */*') && line.includes('mode=direct')));
+  assert.ok(logs.some(line => line.includes('route=direct status=200')));
 });
 
 test('failed fetch retains imported nodes and URLTest membership', () => {

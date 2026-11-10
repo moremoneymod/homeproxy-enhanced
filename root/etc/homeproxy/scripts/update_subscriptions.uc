@@ -16,7 +16,7 @@ import { urldecode, urlencode, urldecode_params } from 'luci.http';
 import { init_action } from 'luci.sys';
 
 import {
-	wGET, decodeBase64Str, getTime, isEmpty, parseURL,
+	wGET, wGETResult, decodeBase64Str, getTime, isEmpty, parseURL,
 	validation, HP_DIR, RUN_DIR
 } from 'homeproxy';
 
@@ -1132,21 +1132,9 @@ function parse_uri(uri) {
 }
 
 function main() {
-	let serviceStopped = false;
-	let serviceTouched = false;
-
 	for (let source in sources) {
 		const fetchViaProxy = source['.name'] ? source.fetch_mode === 'proxy' : via_proxy === '1';
-		if (!fetchViaProxy && !serviceStopped) {
-			log('Stopping service for direct provider download...');
-			init_action('homeproxy', 'stop');
-			serviceStopped = true;
-			serviceTouched = true;
-		} else if (fetchViaProxy && serviceStopped) {
-			log('Starting service for proxied subscription download...');
-			init_action('homeproxy', 'start');
-			serviceStopped = false;
-		}
+		const fetchMode = fetchViaProxy ? 'proxy' : 'direct';
 		const url = replace(source.url, /#.*$/, '');
 		const sourceName = source['.name'] || 'legacy';
 		const groupHash = md5(source['.name'] ? `source:${source['.name']}` : url);
@@ -1160,7 +1148,10 @@ function main() {
 
 		/* Legacy subscriptions keep the Hiddify probe. Named sources make a single,
 		 * explicitly configured request, including all custom headers. */
-		let res = wGET(url, source['.name'] ? sourceUA : 'HiddifyNext/2.0.0', headers);
+		const fetchResult = wGETResult(url, source['.name'] ? sourceUA : 'HiddifyNext/2.0.0', headers, fetchMode);
+		let res = fetchResult.body;
+		log(sprintf('Fetch %s: %s.', sourceName,
+			fetchResult.stderr || `route=${fetchMode} wget_exit=${fetchResult.exitcode}`));
 		let nodes;
 
 		if (!isEmpty(res) && match(trim(res), /^\s*\{/)) {
@@ -1304,11 +1295,6 @@ function main() {
 	if (isEmpty(node_result)) {
 		log('Failed to update subscriptions: no valid node found.');
 
-		if (serviceStopped) {
-			log('Starting service...');
-			init_action('homeproxy', 'start');
-		}
-
 		return false;
 	}
 
@@ -1387,7 +1373,7 @@ function main() {
 	});
 	uci.commit(uciconfig);
 
-	let need_restart = serviceTouched;
+	let need_restart = false;
 	if (!isEmpty(main_node)) {
 		const first_server = uci.get_first(uciconfig, ucinode);
 		if (first_server) {
