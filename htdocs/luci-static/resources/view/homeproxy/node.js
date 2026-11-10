@@ -2197,8 +2197,9 @@ return view.extend({
 
 		o = s.taboption('subscription', form.SectionValue, '_sources', form.GridSection, 'subscription_source');
 		let sourceSection = o.subsection;
-		/* The UCI section name is the stable subscription identity. */
-		sourceSection.anonymous = false;
+		/* Let UCI generate a valid stable section ID. The user-facing name is the
+		 * label option below, so there is no technical identifier to mistype. */
+		sourceSection.anonymous = true;
 		sourceSection.addremove = true;
 		sourceSection.nodescriptions = true;
 		let sourceOption = sourceSection.option(form.Value, 'label', _('Name'));
@@ -2244,7 +2245,7 @@ return view.extend({
 		sourceOption = sourceSection.option(form.DynamicList, 'headers', _('HTTP headers'));
 		sourceOption.description = _('One header per line, as Name: value (for example x-hwid: your-id). Header values may contain secrets.');
 		sourceOption.validate = function(section_id, value) {
-			return /^[A-Za-z0-9!#$%&'*+.^_`|~-]+:[^\r\n]*$/.test(value) ? true : _('Use Name: value without line breaks');
+			return !value || /^[A-Za-z0-9!#$%&'*+.^_`|~-]+:[^\r\n]*$/.test(value) ? true : _('Use Name: value without line breaks');
 		};
 		sourceOption = sourceSection.option(form.ListValue, 'filter_mode', _('Name filter'));
 		sourceOption.value('disabled', _('Disabled'));
@@ -2254,13 +2255,14 @@ return view.extend({
 		sourceOption = sourceSection.option(form.DynamicList, 'filter_keywords', _('Name patterns (regex)'));
 		sourceOption.description = _('Regular expressions matched against the provider label.');
 		sourceOption.validate = function(section_id, value) {
+			if (!value) return true;
 			try { new RegExp(value); return true; }
 			catch(e) { return _('Invalid regular expression'); }
 		};
 		sourceOption = sourceSection.option(form.DynamicList, 'exclude_countries', _('Exclude country codes'));
 		sourceOption.description = _('Two-letter codes from flag emoji in provider labels, for example RU or BY. This is not GeoIP.');
 		sourceOption.validate = function(section_id, value) {
-			return /^[A-Z]{2}$/.test(value) ? true : _('Use two uppercase letters');
+			return !value || /^[A-Z]{2}$/.test(value) ? true : _('Use two uppercase letters');
 		};
 		sourceOption = sourceSection.option(form.DynamicList, 'exclude_keywords', _('Exclude words in names'));
 		sourceOption.description = _('Plain text, case-insensitive. Use name patterns above for regular expressions.');
@@ -2271,7 +2273,7 @@ return view.extend({
 		for (let kind of sourceTypes)
 			sourceOption.value(kind);
 		sourceOption.validate = function(section_id, value) {
-			return sourceTypes.includes(value) ? true : _('Choose a supported protocol type');
+			return !value || sourceTypes.includes(value) ? true : _('Choose a supported protocol type');
 		};
 		sourceOption = sourceSection.option(form.Flag, 'exclude_auto', _('Exclude Auto / EU profiles'));
 		sourceOption = sourceSection.option(form.Flag, 'exclude_unknown', _('Exclude profiles without country flag'));

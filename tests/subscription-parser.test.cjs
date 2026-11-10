@@ -9,6 +9,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.uc'), 'utf8');
 const helperSource = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/homeproxy.uc'), 'utf8');
 const exportSource = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/export_subscription_links.uc'), 'utf8');
+const nodeViewSource = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-static/resources/view/homeproxy/node.js'), 'utf8');
 
 function extract(name) {
   return extractFrom(source, name);
@@ -147,4 +148,11 @@ test('exporter assembles a VLESS REALITY share link from imported node', () => {
   assert.equal(parsed.searchParams.get('pbk'), 'synthetic-key');
   assert.equal(parsed.searchParams.get('sid'), 'abcd');
   assert.equal(parsed.searchParams.get('flow'), 'xtls-rprx-vision');
+});
+
+test('optional subscription fields accept an empty value', () => {
+  assert.match(nodeViewSource, /return !value \|\| sourceTypes\.includes\(value\)/);
+  assert.match(nodeViewSource, /return !value \|\| \/\^\[A-Z\]\{2\}\$\//);
+  assert.match(nodeViewSource, /if \(!value\) return true;[\s\S]*new RegExp\(value\)/);
+  assert.match(nodeViewSource, /sourceSection\.anonymous = true/);
 });
