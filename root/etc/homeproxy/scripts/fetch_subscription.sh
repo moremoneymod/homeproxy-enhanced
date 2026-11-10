@@ -33,8 +33,29 @@ if [ "$MODE" = direct ]; then
 	esac
 
 	[ -n "$host" ] || { echo 'stage=resolve error=invalid_host' >&2; exit 2; }
-	IPS4=$(resolveip -4 -t 5 "$host" 2>/dev/null | sort -u)
-	IPS6=$(resolveip -6 -t 5 "$host" 2>/dev/null | sort -u)
+	IPS4=""
+	IPS6=""
+	if command -v resolveip >/dev/null 2>&1; then
+		IPS4=$(resolveip -4 -t 5 "$host" 2>/dev/null | sort -u)
+		IPS6=$(resolveip -6 -t 5 "$host" 2>/dev/null | sort -u)
+	fi
+	if [ -z "$IPS4$IPS6" ] && command -v nslookup >/dev/null 2>&1; then
+		# Query the ISP/WAN resolver explicitly. This remains usable when dnsmasq
+		# was previously configured to forward through a now-stopped proxy core.
+		WAN_DNS=$(ubus call network.interface.wan status 2>/dev/null \
+			| jsonfilter -e '@["dns-server"][0]' 2>/dev/null)
+		[ -n "$WAN_DNS" ] || WAN_DNS=$(awk '/^nameserver[[:space:]]/ { print $2; exit }' \
+			/tmp/resolv.conf.d/resolv.conf.auto 2>/dev/null)
+		if [ -n "$WAN_DNS" ]; then
+			LOOKUP=$(nslookup "$host" "$WAN_DNS" 2>/dev/null)
+		else
+			LOOKUP=$(nslookup "$host" 2>/dev/null)
+		fi
+		IPS4=$(printf '%s\n' "$LOOKUP" | awk '/^Address [0-9]+: / { print $3 }' \
+			| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | sort -u)
+		IPS6=$(printf '%s\n' "$LOOKUP" | awk '/^Address [0-9]+: / { print $3 }' \
+			| grep ':' | sort -u)
+	fi
 	[ -n "$IPS4$IPS6" ] || { echo 'stage=resolve error=no_address' >&2; exit 3; }
 
 	if nft list set inet fw4 homeproxy_wan_direct_addr_v4 >/dev/null 2>&1; then

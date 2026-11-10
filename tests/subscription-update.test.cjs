@@ -30,6 +30,12 @@ test('direct fetch keeps a stopped HomeProxy on the native WAN path', () => {
   assert.match(source, /subscription\.log/);
 });
 
+test('direct fetch falls back to the WAN DNS when resolveip is unavailable', () => {
+  assert.match(fetchHelper, /command -v nslookup/);
+  assert.match(fetchHelper, /network\.interface\.wan status/);
+  assert.match(fetchHelper, /resolv\.conf\.auto/);
+});
+
 test('updater always logs startup and never restarts HomeProxy after a fetch error', () => {
   assert.match(source, /Updater started: selected=%s, eligible_sources=%s/);
   const trailer = source.slice(source.lastIndexOf("if (!isEmpty(sources))"));
