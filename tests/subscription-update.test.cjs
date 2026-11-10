@@ -10,6 +10,7 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/sc
 const nodeView = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-static/resources/view/homeproxy/node.js'), 'utf8');
 const fetchHelper = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/fetch_subscription.sh'), 'utf8');
 const updateLauncher = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.sh'), 'utf8');
+const installer = fs.readFileSync(path.join(__dirname, '..', 'install.sh'), 'utf8');
 
 test('named sources use a persisted v2rayNG User-Agent by default', () => {
   assert.match(source, /source\.user_agent \|\| 'v2rayNG\/1\.10\.5'/);
@@ -40,6 +41,11 @@ test('shell launcher captures ucode loader failures before the updater starts', 
   assert.match(updateLauncher, /ucode \/etc\/homeproxy\/scripts\/update_subscriptions\.uc/);
   assert.match(updateLauncher, /2>> "\$LOG"/);
   assert.match(nodeView, /exec_direct\('\/etc\/homeproxy\/scripts\/update_subscriptions\.sh'/);
+});
+
+test('master installer installs the ucode digest dependency explicitly', () => {
+  assert.match(installer, /apk add ucode-mod-digest/);
+  assert.match(installer, /opkg install ucode-mod-digest/);
 });
 
 function extract(name) {

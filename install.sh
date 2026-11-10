@@ -59,6 +59,19 @@ ARCH="$DISTRIB_ARCH"; VER="$DISTRIB_RELEASE"
 if   command -v apk  >/dev/null 2>&1; then PM=apk;  EXT=apk
 elif command -v opkg >/dev/null 2>&1; then PM=opkg; EXT=ipk
 else die "Не найден поддерживаемый менеджер пакетов (apk/opkg)."; fi
+
+# Direct-from-master installation bypasses package metadata, so install the
+# ucode module required by subscription hashing explicitly.
+info "Проверяю ucode-mod-digest..."
+if [ "$PM" = apk ]; then
+	apk add ucode-mod-digest >/dev/null 2>&1 \
+		|| { apk update >/dev/null 2>&1 && apk add ucode-mod-digest >/dev/null 2>&1; } \
+		|| die "Не удалось установить ucode-mod-digest (модуль digest для ucode)."
+else
+	opkg install ucode-mod-digest >/dev/null 2>&1 \
+		|| { opkg update >/dev/null 2>&1 && opkg install ucode-mod-digest >/dev/null 2>&1; } \
+		|| die "Не удалось установить ucode-mod-digest (модуль digest для ucode)."
+fi
 case "$VER" in
 	23.05*)              LEGACY=1 ;;
 	24.10*|25.*|*SNAPSHOT*) LEGACY=0 ;;
