@@ -217,11 +217,14 @@ if (action === 'info') {
 							if (overlay_free_kb < need) {
 								result = { error: `Not enough overlay space for the ${chosen === 'upx' ? 'compact' : 'full'} build: ${overlay_free_kb} KB free, need ~${need} KB.` };
 							} else {
-								const hp_path = (chosen === 'upx') ? 'download/upx' : 'latest/download';
+								/* Current hiddify-core releases publish OpenWrt-compatible musl
+								 * tarballs, not the old *_arch.apk assets. */
+								const harch = (arch === 'x86_64') ? 'amd64' :
+									(arch === 'aarch64' || arch === 'arm64') ? 'arm64' : arch;
 								result = {
 									pkg_manager, arch, variant: chosen, note,
-									dl_url: `https://github.com/1andrevich/hiddify-core/releases/${hp_path}/hiddify-core_${arch}${ext}`,
-									tmp_path: `/tmp/hiddify-core${ext}`
+									dl_url: `https://github.com/hiddify/hiddify-core/releases/latest/download/hiddify-core-linux-${harch}-musl.tar.gz`,
+									tmp_path: `/tmp/hiddify-core.tar.gz`
 								};
 							}
 						}
@@ -285,7 +288,17 @@ if (action === 'info') {
 		result = { result: false, error: 'invalid arguments' };
 	} else {
 		let exit_code;
-		if (core === 'hiddify' && pkg_manager === 'apk') {
+		if (core === 'hiddify' && match(tmp_path, /\.tar\.gz$/)) {
+			/* Official hiddify-core releases are tarballs. Install the binary
+			 * directly on OpenWrt; no apk metadata is needed for this core. */
+			const dir = '/tmp/hiddify-core-extract';
+			const cmd = `rm -rf ${shellquote(dir)}; mkdir -p ${shellquote(dir)}; ` +
+				`tar -xzf ${shellquote(tmp_path)} -C ${shellquote(dir)}; ` +
+				`BIN=$(find ${shellquote(dir)} -type f -name 'hiddify*' | head -1); ` +
+				`[ -n "$BIN" ] && install -m 0755 "$BIN" /usr/bin/hiddify-core; ` +
+				`RC=$?; rm -rf ${shellquote(dir)} ${shellquote(tmp_path)}; exit $RC`;
+			exit_code = system(cmd, 120000);
+		} else if (core === 'hiddify' && pkg_manager === 'apk') {
 			/* Signing key: skip the fetch if already present (a provisioning tool may pre-place
 			 * it); else GitHub-first, mirror-FALLBACK via gh_fetch, best-effort (a
 			 * throttled/blocked GitHub must NOT fail the install — the package already
