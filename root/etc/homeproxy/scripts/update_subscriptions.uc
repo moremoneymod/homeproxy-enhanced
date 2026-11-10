@@ -1143,7 +1143,9 @@ function main() {
 		const groupHash = md5(source['.name'] ? `source:${source['.name']}` : url);
 		node_cache[groupHash] = {};
 		const headers = source.headers || [];
-		const sourceUA = source.user_agent || user_agent;
+		/* Named sources target subscription providers directly. Use the v2rayNG
+		 * identity by default instead of an empty/global legacy value. */
+		const sourceUA = source.user_agent || 'v2rayNG/1.10.5';
 
 		/* Legacy subscriptions keep the Hiddify probe. Named sources make a single,
 		 * explicitly configured request, including all custom headers. */

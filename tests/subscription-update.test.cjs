@@ -7,6 +7,13 @@ const vm = require('node:vm');
 const crypto = require('node:crypto');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.uc'), 'utf8');
+const nodeView = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-static/resources/view/homeproxy/node.js'), 'utf8');
+
+test('named sources use a persisted v2rayNG User-Agent by default', () => {
+  assert.match(source, /source\.user_agent \|\| 'v2rayNG\/1\.10\.5'/);
+  assert.match(nodeView, /sourceOption\.default = 'v2rayNG\/1\.10\.5'/);
+});
+
 function extract(name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);

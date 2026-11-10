@@ -2215,6 +2215,7 @@ return view.extend({
 			} catch(e) { return _('Enter an HTTP or HTTPS URL'); }
 		};
 		sourceOption = sourceSection.option(form.Value, 'user_agent', _('User-Agent'));
+		sourceOption.default = 'v2rayNG/1.10.5';
 		sourceOption.placeholder = 'v2rayNG/1.10.5';
 		sourceOption = sourceSection.option(form.ListValue, 'xray_outbound_mode', _('Xray outbounds'));
 		sourceOption.value('primary', _('Primary proxy only'));
