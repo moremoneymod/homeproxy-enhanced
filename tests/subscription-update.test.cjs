@@ -39,6 +39,7 @@ test('direct fetch falls back to the WAN DNS when resolveip is unavailable', () 
 });
 
 test('fetch helper creates the response file before wget and records bounded stderr', () => {
+  assert.doesNotMatch(fetchHelper, /wget -S/);
   assert.match(fetchHelper, /: > "\$TMP\.body"/);
   assert.match(fetchHelper, /detail=\$detail/);
   assert.match(fetchHelper, /cut -c1-300/);

@@ -92,7 +92,7 @@ if [ "$MODE" = direct ]; then
 fi
 
  : > "$TMP.body"
-set -- /usr/bin/wget -S -O "$TMP.body" --user-agent "$UA" --timeout=35 "$@" "$URL"
+set -- /usr/bin/wget -O "$TMP.body" --user-agent "$UA" --timeout=35 "$@" "$URL"
 "$@" 2>"$TMP.headers"
 rc=$?
 status=$(sed -n 's/^[[:space:]]*HTTP\/[0-9.]* \([0-9][0-9][0-9]\).*/\1/p' "$TMP.headers" | tail -1)
