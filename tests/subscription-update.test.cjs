@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.uc'), 'utf8');
 const nodeView = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-static/resources/view/homeproxy/node.js'), 'utf8');
+const clientView = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-static/resources/view/homeproxy/client.js'), 'utf8');
 const fetchHelper = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/fetch_subscription.sh'), 'utf8');
 const updateLauncher = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.sh'), 'utf8');
 const installer = fs.readFileSync(path.join(__dirname, '..', 'install.sh'), 'utf8');
@@ -61,6 +62,14 @@ test('shell launcher captures ucode loader failures before the updater starts', 
 test('master installer installs the ucode digest dependency explicitly', () => {
   assert.match(installer, /apk add ucode-mod-digest/);
   assert.match(installer, /opkg install ucode-mod-digest/);
+});
+
+test('routing ports default is empty rather than invalid literal all', () => {
+  const config = fs.readFileSync(path.join(__dirname, '..', 'root/etc/config/homeproxy'), 'utf8');
+  const defaults = fs.readFileSync(path.join(__dirname, '..', 'root/usr/share/homeproxy/homeproxy.default'), 'utf8');
+  assert.match(config, /option routing_port ''/);
+  assert.match(defaults, /option routing_port ''/);
+  assert.match(clientView, /value === 'all' \? '' : value/);
 });
 
 function extract(name) {

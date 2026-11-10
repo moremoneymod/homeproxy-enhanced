@@ -489,6 +489,10 @@ return view.extend({
 
 		o = s.taboption('routing', form.Value, 'routing_port', _('Routing ports'),
 			_('Specify target ports to be proxied. Multiple ports must be separated by commas.'));
+		o.cfgvalue = function(section_id) {
+			let value = uci.get(data[0], section_id, 'routing_port');
+			return value === 'all' ? '' : value;
+		};
 		o.value('', _('All ports'));
 		o.value('common', _('Common ports only (bypass P2P traffic)'));
 		o.validate = function(section_id, value) {
