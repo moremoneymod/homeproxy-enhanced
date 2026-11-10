@@ -79,11 +79,11 @@ if [ "${MASTER:-1}" = 1 ]; then
 		|| die "Не удалось скачать master (попробуйте GH_MIRROR=...)."
 	tar -xzf /tmp/homeproxy-master.tar.gz -C "$SRC" \
 		|| die "Не удалось распаковать master."
-	MASTER_ROOT=$(find "$SRC" -type d -name root 2>/dev/null | head -1)
-	MASTER_HTDOCS=$(find "$SRC" -type d -name htdocs 2>/dev/null | head -1)
-	[ -d "$MASTER_ROOT" ] && cp -fpR "$MASTER_ROOT"/. / \
+	MASTER_ROOT="$SRC/homeproxy-enhanced-master/root"
+	MASTER_HTDOCS="$SRC/homeproxy-enhanced-master/htdocs"
+	[ -d "$MASTER_ROOT" ] && cp -R "$MASTER_ROOT"/. / \
 		|| die "В архиве master не найден каталог root/."
-	[ -d "$MASTER_HTDOCS" ] && { mkdir -p /www; cp -fpR "$MASTER_HTDOCS"/. /www/; } \
+	[ -d "$MASTER_HTDOCS" ] && { mkdir -p /www; cp -R "$MASTER_HTDOCS"/. /www/; } \
 		|| die "В архиве master не найден каталог htdocs/."
 	rm -rf "$SRC" /tmp/homeproxy-master.tar.gz
 	ok "  код master установлен"
