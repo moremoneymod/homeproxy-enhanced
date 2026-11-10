@@ -35,7 +35,9 @@ export function executeCommand(...args) {
 	outfd.seek(0);
 	errfd.seek(0);
 
-	const stdout = outfd.read(1024 * 512) ?? '';
+	/* Provider JSON arrays can exceed the old 512 KiB cap. Read one extra byte
+	 * so callers can reject oversize responses instead of parsing truncated JSON. */
+	const stdout = outfd.read(12 * 1024 * 1024 + 1) ?? '';
 	const stderr = errfd.read(1024 * 512) ?? '';
 
 	outfd.close();
@@ -48,7 +50,8 @@ export function executeCommand(...args) {
 		stdout: binary ? null : stdout,
 		stderr,
 		exitcode,
-		binary
+		binary,
+		too_large: length(stdout) > 12 * 1024 * 1024
 	};
 };
 
@@ -66,15 +69,27 @@ export function getTime(epoch) {
 
 };
 
-export function wGET(url, ua) {
+export function wGET(url, ua, headers) {
 	if (!url || type(url) !== 'string')
 		return null;
 
 	if (!ua)
 		ua = 'Wget/1.21 (HomeProxy, like v2rayN)';
 
-	const output = executeCommand(`/usr/bin/wget -qO- --user-agent ${shellQuote(ua)} --timeout=10 ${shellQuote(url)}`) || {};
-	return trim(output.stdout);
+	let options = '';
+	for (let header in (headers || [])) {
+		/* Header lines are supplied by the user, but must never inject shell options
+		 * or another HTTP header through CR/LF. shellQuote protects the shell. */
+		if (type(header) !== 'string' || !match(header, /^[A-Za-z0-9!#$%&'*+.^_`|~-]+:[^\r\n]*$/))
+			return null;
+		if (match(header, /^User-Agent:/i)) {
+			ua = trim(substr(header, index(header, ':') + 1));
+			continue;
+		}
+		options += ` --header ${shellQuote(header)}`;
+	}
+	const output = executeCommand(`/usr/bin/wget -qO- --user-agent ${shellQuote(ua)}${options} --timeout=35 ${shellQuote(url)}`) || {};
+	return output.exitcode === 0 && !output.too_large && !output.binary ? trim(output.stdout) : null;
 };
 /* Utilities end */
 

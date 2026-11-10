@@ -243,6 +243,10 @@ return view.extend({
 			o.value(i, proxy_nodes[i]);
 		o.depends('main_node', 'urltest');
 		o.rmempty = false;
+		o = s.taboption('routing', form.ListValue, 'main_urltest_subscription', _('URLTest subscription'));
+		o.value('', _('Manual node list'));
+		uci.sections(data[0], 'subscription_source', sub => o.value(sub['.name'], sub.label || sub.url));
+		o.depends('main_node', 'urltest');
 
 		o = s.taboption('routing', form.Value, 'main_urltest_interval', _('Test interval'),
 			_('How often each node is tested (seconds). Lower = faster failover, higher = less overhead.'));
@@ -274,6 +278,10 @@ return view.extend({
 			o.value(i, proxy_nodes[i]);
 		o.depends('main_udp_node', 'urltest');
 		o.rmempty = false;
+		o = s.taboption('routing', form.ListValue, 'main_udp_urltest_subscription', _('URLTest subscription'));
+		o.value('', _('Manual node list'));
+		uci.sections(data[0], 'subscription_source', sub => o.value(sub['.name'], sub.label || sub.url));
+		o.depends('main_udp_node', 'urltest');
 
 		o = s.taboption('routing', form.Value, 'main_udp_urltest_interval', _('Test interval'),
 			_('The test interval in seconds.'));
@@ -1019,12 +1027,25 @@ return view.extend({
 			so.value(i, proxy_nodes[i]);
 		so.depends('node', 'urltest');
 		so.validate = function(section_id) {
+			let source = this.section.formvalue(section_id, 'urltest_subscription') ||
+				uci.get(data[0], section_id, 'urltest_subscription');
+			if (source) {
+				let group = hp.calcStringMD5('source:' + source);
+				return uci.sections(data[0], 'node').some(n => n.grouphash === group) ?
+					true : _('Import this subscription before assigning it to URLTest');
+			}
 			let value = this.section.formvalue(section_id, 'urltest_nodes');
 			if (section_id && !value.length)
 				return _('Expecting: %s').format(_('non-empty value'));
 
 			return true;
 		}
+		so.modalonly = true;
+
+		so = ss.option(form.ListValue, 'urltest_subscription', _('URLTest subscription'));
+		so.value('', _('Manual node list'));
+		uci.sections(data[0], 'subscription_source', sub => so.value(sub['.name'], sub.label || sub.url));
+		so.depends('node', 'urltest');
 		so.modalonly = true;
 
 		so = ss.option(form.Value, 'urltest_url', _('Test URL'),

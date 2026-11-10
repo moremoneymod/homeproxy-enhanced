@@ -38,6 +38,23 @@ const allow_insecure = uci.get(uciconfig, ucisubscription, 'allow_insecure') || 
       user_agent = uci.get(uciconfig, ucisubscription, 'user_agent'),
       via_proxy = uci.get(uciconfig, ucisubscription, 'update_via_proxy') || '0';
 
+/* Named sources coexist with the legacy URL list. Their UCI section names are
+ * stable identities, so changing a URL does not orphan the corresponding nodes. */
+const sources = [];
+const scheduled = ARGV[0] === '--scheduled';
+const selectedSource = !scheduled ? ARGV[0] : null;
+const now = time();
+uci.foreach(uciconfig, 'subscription_source', (cfg) => {
+	const interval = max(1, min(168, int(cfg.update_interval_hours || '24')));
+	const last = int(cfg.last_success || '0');
+	if (cfg.enabled !== '0' && cfg.url && (!selectedSource || cfg['.name'] === selectedSource) &&
+	    (!scheduled || !last || now - last >= interval * 3600))
+		push(sources, cfg);
+});
+if (!selectedSource && (!scheduled || localtime(now).hour === int(uci.get(uciconfig, ucisubscription, 'auto_update_time') || '2')))
+	for (let url in subscription_urls)
+		push(sources, { '.name': null, url: url, user_agent: user_agent });
+
 const routing_mode = uci.get(uciconfig, ucimain, 'routing_mode') || 'bypass_mainalnd_china';
 let main_node, main_udp_node;
 if (routing_mode !== 'custom') {
@@ -47,17 +64,42 @@ if (routing_mode !== 'custom') {
 /* UCI config end */
 
 /* String helper start */
-function filter_check(name) {
-	if (isEmpty(name) || filter_mode === 'disabled' || isEmpty(filter_keywords))
+function filter_check(name, source) {
+	const mode = source.filter_mode || filter_mode;
+	const keywords = source.filter_keywords || filter_keywords;
+	if (isEmpty(name))
+		return false;
+	/* Country is read from flag emoji in the provider label, not from GeoIP.
+	 * uchr() creates UTF-8 flags; ord() would inspect bytes, not codepoints. */
+	const excluded = source.exclude_countries || [];
+	for (let code in excluded) {
+		if (match(code, /^[A-Z]{2}$/) &&
+		    index(name, uchr(0x1f1e6 + ord(code, 0) - 65, 0x1f1e6 + ord(code, 1) - 65)) >= 0)
+			return true;
+	}
+	if (source.exclude_auto === '1' && (index(name, '🇪🇺') >= 0 || match(name, /\b(auto|automatic)\b/i) || match(name, /[Аа]вто/))) return true;
+	if (source.exclude_unknown === '1') {
+		let has_flag = false;
+		for (let a = 0; a < 26 && !has_flag; a++)
+			for (let b = 0; b < 26 && !has_flag; b++)
+				has_flag = index(name, uchr(0x1f1e6 + a, 0x1f1e6 + b)) >= 0;
+		if (!has_flag) return true;
+	}
+	for (let word in (source.exclude_keywords || []))
+		if (word && index(lc(name), lc(word)) >= 0)
+			return true;
+	if (mode === 'disabled' || isEmpty(keywords))
 		return false;
 
 	let ret = false;
-	for (let i in filter_keywords) {
-		const patten = regexp(i);
+	for (let i in keywords) {
+		let patten;
+		try { patten = regexp(i); }
+		catch(e) { return true; }
 		if (match(name, patten))
 			ret = true;
 	}
-	if (filter_mode === 'whitelist')
+	if (mode === 'whitelist')
 		ret = !ret;
 
 	return ret;
@@ -404,6 +446,26 @@ function parse_xray_config(cfg) {
 		return null;
 
 	return parse_xray_outbound(chosen, cfg.remarks);
+}
+
+function parse_xray_subscription(configs, source) {
+	const nodes = [];
+	for (let cfg in configs) {
+		if (source.xray_outbound_mode !== 'all') {
+			const node = parse_xray_config(cfg);
+			if (node) push(nodes, node);
+			continue;
+		}
+		for (let ob in (cfg.outbounds || [])) {
+			if (ob.protocol in ['freedom', 'blackhole', 'dns', 'loopback'] ||
+			    (ob.tag && match(ob.tag, /^at4pda|upstream/)))
+				continue;
+			const label = ob.tag && ob.tag !== 'proxy' ? `${cfg.remarks || 'Server'} (${ob.tag})` : cfg.remarks;
+			const node = parse_xray_outbound(ob, label);
+			if (node) push(nodes, node);
+		}
+	}
+	return nodes;
 }
 
 function parse_uri(uri) {
@@ -1075,13 +1137,17 @@ function main() {
 		init_action('homeproxy', 'stop');
 	}
 
-	for (let url in subscription_urls) {
-		url = replace(url, /#.*$/, '');
-		const groupHash = md5(url);
+	for (let source in sources) {
+		const url = replace(source.url, /#.*$/, '');
+		const sourceName = source['.name'] || 'legacy';
+		const groupHash = md5(source['.name'] ? `source:${source['.name']}` : url);
 		node_cache[groupHash] = {};
+		const headers = source.headers || [];
+		const sourceUA = source.user_agent || user_agent;
 
-		/* Try Hiddify JSON format first: User-Agent triggers sing-box JSON on Hiddify Manager servers */
-		let res = wGET(url, 'HiddifyNext/2.0.0');
+		/* Legacy subscriptions keep the Hiddify probe. Named sources make a single,
+		 * explicitly configured request, including all custom headers. */
+		let res = wGET(url, source['.name'] ? sourceUA : 'HiddifyNext/2.0.0', headers);
 		let nodes;
 
 		if (!isEmpty(res) && match(trim(res), /^\s*\{/)) {
@@ -1097,7 +1163,7 @@ function main() {
 					map(sub_json.outbounds, ob => parse_singbox_outbound(ob, companion_map)),
 					c => !isEmpty(c)
 				);
-				log(sprintf('Received sing-box JSON subscription from %s.', url));
+				log(sprintf('Received sing-box JSON subscription from %s.', sourceName));
 			}
 		}
 
@@ -1109,15 +1175,12 @@ function main() {
 			try { xray_arr = json(res); } catch(e) {}
 			if (type(xray_arr) === 'array' && length(xray_arr) &&
 			    type(xray_arr[0]) === 'object' && xray_arr[0].outbounds) {
-				nodes = filter(
-					map(xray_arr, cfg => parse_xray_config(cfg)),
-					c => !isEmpty(c)
-				);
-				log(sprintf('Received Xray JSON subscription from %s.', url));
+				nodes = parse_xray_subscription(xray_arr, source);
+				log(sprintf('Received Xray JSON subscription from %s.', sourceName));
 			}
 		}
 
-		if (isEmpty(nodes)) {
+		if (isEmpty(nodes) && !source['.name']) {
 			/* Fallback: fetch with configured user_agent */
 			res = wGET(url, user_agent);
 
@@ -1126,14 +1189,14 @@ function main() {
 			if (isEmpty(res) || match(res, /^\s*</)) {
 				const rawUrl = replace(url, /\/*$/, '') + '/raw';
 				log(sprintf('%s from %s, retrying with /raw.',
-					isEmpty(res) ? 'Empty response' : 'HTML response', url));
+					isEmpty(res) ? 'Empty response' : 'HTML response', sourceName));
 				const rawRes = wGET(rawUrl, user_agent);
 				if (!isEmpty(rawRes) && !match(rawRes, /^\s*</))
 					res = rawRes;
 			}
 
 			if (isEmpty(res)) {
-				log(sprintf('Failed to fetch resources from %s.', url));
+					log(sprintf('Failed to fetch resources from %s.', sourceName));
 				continue;
 			}
 
@@ -1142,12 +1205,12 @@ function main() {
 				if (type(parsed) === 'array' && length(parsed) &&
 				    type(parsed[0]) === 'object' && parsed[0].outbounds) {
 					/* Xray/V2Ray JSON config array */
-					nodes = filter(map(parsed, cfg => parse_xray_config(cfg)), c => !isEmpty(c));
+					nodes = parse_xray_subscription(parsed, source);
 				} else {
 					nodes = parsed.servers || parsed;
 
 					/* Shadowsocks SIP008 format */
-					if (nodes[0].server && nodes[0].method)
+					if (type(nodes) === 'array' && length(nodes) && type(nodes[0]) === 'object' && nodes[0].server && nodes[0].method)
 						map(nodes, (_, i) => nodes[i].nodetype = 'sip008');
 				}
 			} catch(e) {
@@ -1159,6 +1222,22 @@ function main() {
 			}
 		}
 
+		/* Named sources also accept share-link lists and SIP008. */
+		if (isEmpty(nodes) && source['.name'] && !isEmpty(res)) {
+			try {
+				const parsed = json(res);
+				nodes = parsed.servers || parsed;
+				if (type(nodes) === 'array' && length(nodes) && nodes[0].server && nodes[0].method)
+					map(nodes, (_, i) => nodes[i].nodetype = 'sip008');
+			} catch(e) {
+				const decoded = decodeBase64Str(res);
+				nodes = split(trim(decoded || res), '\n');
+			}
+		}
+		if (isEmpty(nodes)) {
+			log(sprintf('No usable response from %s; retaining previous nodes.', sourceName));
+			continue;
+		}
 		let count = 0;
 		for (let node in nodes) {
 			let config;
@@ -1166,16 +1245,19 @@ function main() {
 				config = parse_uri(node);
 			if (isEmpty(config))
 				continue;
+			if (!isEmpty(source.include_types) && !(config.type in source.include_types))
+				continue;
 
 			const label = config.label;
 			config.label = null;
 			const confHash = md5(sprintf('%J', config)),
-			      nameHash = md5(label);
+			      nameHash = md5(label),
+			      stableId = md5(groupHash + ':' + confHash);
 			config.label = label;
 
-			if (filter_check(config.label))
+			if (filter_check(config.label, source))
 				log(sprintf('Skipping blacklist node: %s.', config.label));
-			else if (node_cache[groupHash][confHash] || node_cache[groupHash][nameHash])
+			else if (node_cache[groupHash][confHash])
 				log(sprintf('Skipping duplicate node: %s.', config.label));
 			else {
 				if (config.tls === '1' && allow_insecure === '1')
@@ -1184,19 +1266,26 @@ function main() {
 					config.packet_encoding = packet_encoding;
 
 				config.grouphash = groupHash;
+				config.stable_id = stableId;
 				push(node_result, []);
 				push(node_result[length(node_result)-1], config);
 				node_cache[groupHash][confHash] = config;
-				node_cache[groupHash][nameHash] = config;
+				/* Only old URL-list nodes used label hashes as UCI IDs. */
+				if (!source['.name'])
+					node_cache[groupHash][nameHash] = config;
+				node_cache[groupHash][stableId] = config;
 
 				count++;
 			}
 		}
 
 		if (count == 0)
-			log(sprintf('No valid node found in %s.', url));
-		else
-			log(sprintf('Successfully fetched %s nodes of total %s from %s.', count, length(nodes), url));
+			log(sprintf('No valid node found in %s; retaining previous nodes.', sourceName));
+		else {
+			if (source['.name'])
+				uci.set(uciconfig, source['.name'], 'last_success', '' + now);
+			log(sprintf('Successfully fetched %s nodes of total %s from %s.', count, length(nodes), sourceName));
+		}
 	}
 
 	if (isEmpty(node_result)) {
@@ -1217,7 +1306,7 @@ function main() {
 			return null;
 
 		/* Empty object - failed to fetch nodes */
-		if (length(node_cache[cfg.grouphash]) === 0)
+		if (!node_cache[cfg.grouphash] || length(node_cache[cfg.grouphash]) === 0)
 			return null;
 
 		if (!node_cache[cfg.grouphash] || !node_cache[cfg.grouphash][cfg['.name']]) {
@@ -1247,13 +1336,42 @@ function main() {
 			if (node.isExisting)
 				return null;
 
-			const nameHash = md5(node.label);
-			uci.set(uciconfig, nameHash, 'node');
-			map(keys(node), (v) => uci.set(uciconfig, nameHash, v, node[v]));
+			const nodeId = node.stable_id || md5(node.label);
+			uci.set(uciconfig, nodeId, 'node');
+			map(keys(node), (v) => uci.set(uciconfig, nodeId, v, node[v]));
 
 			added++;
 			log(sprintf('Adding node: %s.', node.label));
 		});
+	/* Keep URLTest membership tied to the named source after each successful
+	 * import. A failed or empty source keeps its previous nodes and membership. */
+	function subscription_nodes(section) {
+		if (!section) return null;
+		const ids = [];
+		const hash = md5(`source:${section}`);
+		uci.foreach(uciconfig, ucinode, (cfg) => {
+			if (cfg.grouphash === hash)
+				push(ids, cfg['.name']);
+		});
+		return length(ids) ? ids : null;
+	}
+	function sync_urltest(section, option, target) {
+		const ids = subscription_nodes(uci.get(uciconfig, section, option));
+		if (!ids) return;
+		const old = uci.get(uciconfig, section, target) || [];
+		if (sprintf('%J', old) !== sprintf('%J', ids)) {
+			uci.set(uciconfig, section, target, ids);
+			log(sprintf('Updated URLTest membership for %s.', section));
+		}
+	}
+	if (main_node === 'urltest')
+		sync_urltest(ucimain, 'main_urltest_subscription', 'main_urltest_nodes');
+	if (main_udp_node === 'urltest')
+		sync_urltest(ucimain, 'main_udp_urltest_subscription', 'main_udp_urltest_nodes');
+	uci.foreach(uciconfig, 'routing_node', (cfg) => {
+		if (cfg.node === 'urltest')
+			sync_urltest(cfg['.name'], 'urltest_subscription', 'urltest_nodes');
+	});
 	uci.commit(uciconfig);
 
 	let need_restart = (via_proxy !== '1');
@@ -1319,9 +1437,10 @@ function main() {
 	log('Successfully updated subscriptions.');
 }
 
-if (!isEmpty(subscription_urls))
+if (!isEmpty(sources))
 	try {
-		call(main);
+		if (call(main) === false)
+			exit(1);
 	} catch(e) {
 		log('[FATAL ERROR] An error occurred during updating subscriptions:');
 		log(sprintf('%s: %s', e.type, e.message));

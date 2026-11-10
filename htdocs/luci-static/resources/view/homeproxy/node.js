@@ -1950,6 +1950,11 @@ return view.extend({
 			const title = url.hash ? decodeURIComponent(url.hash.slice(1)) : url.hostname;
 			subinfo.push({ 'hash': urlhash, 'title': title });
 		}
+		uci.sections(data[0], 'subscription_source', (source) => {
+			if (source.url)
+				subinfo.push({ 'hash': hp.calcStringMD5('source:' + source['.name']),
+					'title': source.label || source['.name'] });
+		});
 
 		m = new form.Map('homeproxy', _('Edit nodes'));
 
@@ -2158,6 +2163,7 @@ return view.extend({
 
 		o = s.taboption('subscription', form.DynamicList, 'subscription_url', _('Subscription URL-s'),
 			_('Support Hysteria, Shadowsocks, Trojan, v2rayN (VMess), and XTLS (VLESS) online configuration delivery standard.'));
+		o.description = _('Legacy URLs. Use the sources below for custom request headers and per-source filtering.');
 		o.validate = function(section_id, value) {
 			if (section_id && value) {
 				try {
@@ -2189,6 +2195,98 @@ return view.extend({
 		o = s.taboption('subscription', form.Value, 'user_agent', _('User-Agent'));
 		o.placeholder = 'Wget/1.21 (HomeProxy, like v2rayN)';
 
+		o = s.taboption('subscription', form.SectionValue, '_sources', form.GridSection, 'subscription_source');
+		let sourceSection = o.subsection;
+		/* The UCI section name is the stable subscription identity. */
+		sourceSection.anonymous = false;
+		sourceSection.addremove = true;
+		sourceSection.nodescriptions = true;
+		let sourceOption = sourceSection.option(form.Value, 'label', _('Name'));
+		sourceOption.rmempty = false;
+		sourceOption = sourceSection.option(form.Flag, 'enabled', _('Enabled'));
+		sourceOption.default = '1';
+		sourceOption = sourceSection.option(form.Value, 'url', _('Subscription URL'));
+		sourceOption.rmempty = false;
+		sourceOption.validate = function(section_id, value) {
+			try {
+				let parsed = new URL(value);
+				return ['https:', 'http:'].includes(parsed.protocol) && parsed.hostname ? true : _('Enter an HTTP or HTTPS URL');
+			} catch(e) { return _('Enter an HTTP or HTTPS URL'); }
+		};
+		sourceOption = sourceSection.option(form.Value, 'user_agent', _('User-Agent'));
+		sourceOption.placeholder = 'v2rayNG/1.10.5';
+		sourceOption = sourceSection.option(form.ListValue, 'xray_outbound_mode', _('Xray outbounds'));
+		sourceOption.value('primary', _('Primary proxy only'));
+		sourceOption.value('all', _('All compatible proxy outbounds'));
+		sourceOption.default = 'primary';
+		sourceOption = sourceSection.option(form.Value, 'update_interval_hours', _('Update interval (hours)'));
+		sourceOption.datatype = 'range(1,168)';
+		sourceOption.default = '24';
+		sourceOption = sourceSection.option(form.DummyValue, '_last_success', _('Last successful update'));
+		sourceOption.cfgvalue = function(section_id) {
+			let timestamp = Number(uci.get(data[0], section_id, 'last_success'));
+			return timestamp ? new Date(timestamp * 1000).toLocaleString() : _('Never');
+		};
+		sourceOption = sourceSection.option(form.DummyValue, '_node_count', _('Imported nodes'));
+		sourceOption.cfgvalue = function(section_id) {
+			let group = hp.calcStringMD5('source:' + section_id);
+			return String(uci.sections(data[0], 'node').filter(n => n.grouphash === group).length);
+		};
+		sourceOption = sourceSection.option(form.Button, '_update_source', _('Update source'));
+		sourceOption.inputtitle = _('Update now');
+		sourceOption.description = _('Save source settings before updating.');
+		sourceOption.onclick = function(section_id) {
+			ui.showModal(_('Updating subscription'), [E('p', { class: 'spinning' }, _('Fetching nodes, please wait...'))]);
+			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.uc', [section_id])
+				.then(() => location.reload())
+				.catch(err => { ui.hideModal(); ui.addNotification(null, E('p', String(err))); });
+		};
+		sourceOption = sourceSection.option(form.DynamicList, 'headers', _('HTTP headers'));
+		sourceOption.description = _('One header per line, as Name: value (for example x-hwid: your-id). Header values may contain secrets.');
+		sourceOption.validate = function(section_id, value) {
+			return /^[A-Za-z0-9!#$%&'*+.^_`|~-]+:[^\r\n]*$/.test(value) ? true : _('Use Name: value without line breaks');
+		};
+		sourceOption = sourceSection.option(form.ListValue, 'filter_mode', _('Name filter'));
+		sourceOption.value('disabled', _('Disabled'));
+		sourceOption.value('blacklist', _('Exclude matching names'));
+		sourceOption.value('whitelist', _('Keep matching names'));
+		sourceOption.default = 'disabled';
+		sourceOption = sourceSection.option(form.DynamicList, 'filter_keywords', _('Name patterns (regex)'));
+		sourceOption.description = _('Regular expressions matched against the provider label.');
+		sourceOption.validate = function(section_id, value) {
+			try { new RegExp(value); return true; }
+			catch(e) { return _('Invalid regular expression'); }
+		};
+		sourceOption = sourceSection.option(form.DynamicList, 'exclude_countries', _('Exclude country codes'));
+		sourceOption.description = _('Two-letter codes from flag emoji in provider labels, for example RU or BY. This is not GeoIP.');
+		sourceOption.validate = function(section_id, value) {
+			return /^[A-Z]{2}$/.test(value) ? true : _('Use two uppercase letters');
+		};
+		sourceOption = sourceSection.option(form.DynamicList, 'exclude_keywords', _('Exclude words in names'));
+		sourceOption.description = _('Plain text, case-insensitive. Use name patterns above for regular expressions.');
+		sourceOption = sourceSection.option(form.DynamicList, 'include_types', _('Keep protocol types'));
+		sourceOption.description = _('Leave empty to import every supported type. For example, enter vless to keep only VLESS nodes.');
+		const sourceTypes = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2',
+			'tuic', 'wireguard', 'amneziawg', 'naive', 'ssh', 'mieru', 'anytls', 'socks', 'http'];
+		for (let kind of sourceTypes)
+			sourceOption.value(kind);
+		sourceOption.validate = function(section_id, value) {
+			return sourceTypes.includes(value) ? true : _('Choose a supported protocol type');
+		};
+		sourceOption = sourceSection.option(form.Flag, 'exclude_auto', _('Exclude Auto / EU profiles'));
+		sourceOption = sourceSection.option(form.Flag, 'exclude_unknown', _('Exclude profiles without country flag'));
+		sourceOption = sourceSection.option(form.Button, '_export_links', _('VLESS share links'));
+		sourceOption.inputtitle = _('Show imported VLESS links');
+		sourceOption.onclick = function(section_id) {
+			return fs.exec_direct('/usr/bin/ucode', ['/etc/homeproxy/scripts/export_subscription_links.uc', section_id]).then(links => {
+				ui.showModal(_('VLESS share links'), [
+					E('p', _('These links contain VPN credentials.')),
+					E('textarea', { readonly: true, rows: 12, style: 'width:100%' }, links || ''),
+					E('div', { class: 'right' }, E('button', { class: 'btn', click: ui.hideModal }, _('Close')))
+				]);
+			});
+		};
+
 		o = s.taboption('subscription', form.Flag, 'allow_insecure', _('Allow insecure'),
 			_('Allow insecure connection by default when add nodes from subscriptions.') +
 			'<br/>' +
@@ -2215,6 +2313,7 @@ return view.extend({
 		o.inputstyle = 'apply';
 		o.inputtitle = function(section_id) {
 			let sublist = uci.get(data[0], section_id, 'subscription_url') || [];
+			sublist = sublist.concat(uci.sections(data[0], 'subscription_source').filter(s => s.enabled !== '0' && s.url));
 			if (sublist.length > 0) {
 				return _('Update %s subscriptions').format(sublist.length);
 			} else {

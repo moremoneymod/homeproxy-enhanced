@@ -887,7 +887,7 @@ const methods = {
 					if (skip_value_body && !is_uci_line)
 						continue;
 					skip_value_body = false;
-					if (is_uci_line && match(out, /(password|private_key|pre_shared_key|uuid|token|secret|subscription_url|address|tls_sni|tls_reality_public_key|tls_reality_short_id|grouphash|username|grpc_servicename|http_path|xhttp_download_server|naive_extra_headers|ssh_priv_key|ssh_host_key)=/)) {
+					if (is_uci_line && match(out, /(password|private_key|pre_shared_key|uuid|token|secret|subscription_url|url|headers|address|tls_sni|tls_reality_public_key|tls_reality_short_id|grouphash|username|grpc_servicename|http_path|xhttp_download_server|naive_extra_headers|ssh_priv_key|ssh_host_key)=/)) {
 						out = replace(out, /=.*$/, '=[REDACTED]');
 						skip_value_body = true;
 					}
