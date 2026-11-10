@@ -46,15 +46,21 @@ if [ "$MODE" = direct ]; then
 			| jsonfilter -e '@["dns-server"][0]' 2>/dev/null)
 		[ -n "$WAN_DNS" ] || WAN_DNS=$(awk '/^nameserver[[:space:]]/ { print $2; exit }' \
 			/tmp/resolv.conf.d/resolv.conf.auto 2>/dev/null)
-		if [ -n "$WAN_DNS" ]; then
-			LOOKUP=$(nslookup "$host" "$WAN_DNS" 2>/dev/null)
-		else
-			LOOKUP=$(nslookup "$host" 2>/dev/null)
-		fi
-		IPS4=$(printf '%s\n' "$LOOKUP" | awk '/^Address [0-9]+: / { print $3 }' \
-			| grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | sort -u)
-		IPS6=$(printf '%s\n' "$LOOKUP" | awk '/^Address [0-9]+: / { print $3 }' \
-			| grep ':' | sort -u)
+		DNS_LIST="$WAN_DNS 1.1.1.1 8.8.8.8 9.9.9.9"
+		for dns in $DNS_LIST; do
+			[ -n "$dns" ] || continue
+			LOOKUP=$(nslookup "$host" "$dns" 2>/dev/null)
+			CANDIDATES=$(printf '%s\n' "$LOOKUP" | awk '
+				/^Name:/ { seen=1; next }
+				seen && /^Address([[:space:]][0-9]+)?:/ { print $NF }
+			')
+			IPS4=$(printf '%s\n' "$CANDIDATES" | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' | sort -u)
+			IPS6=$(printf '%s\n' "$CANDIDATES" | grep ':' | sort -u)
+			if [ -n "$IPS4$IPS6" ]; then
+				echo "stage=resolve dns=$dns ipv4=$(printf '%s' "$IPS4" | tr '\n' ',') ipv6=$(printf '%s' "$IPS6" | tr '\n' ',')" >&2
+				break
+			fi
+		done
 	fi
 	[ -n "$IPS4$IPS6" ] || { echo 'stage=resolve error=no_address' >&2; exit 3; }
 

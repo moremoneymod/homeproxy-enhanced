@@ -34,6 +34,8 @@ test('direct fetch falls back to the WAN DNS when resolveip is unavailable', () 
   assert.match(fetchHelper, /command -v nslookup/);
   assert.match(fetchHelper, /network\.interface\.wan status/);
   assert.match(fetchHelper, /resolv\.conf\.auto/);
+  assert.match(fetchHelper, /1\.1\.1\.1 8\.8\.8\.8 9\.9\.9\.9/);
+  assert.match(fetchHelper, /stage=resolve dns=/);
 });
 
 test('updater always logs startup and never restarts HomeProxy after a fetch error', () => {
