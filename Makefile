@@ -14,7 +14,7 @@ LUCI_DEPENDS:= \
 PKG_NAME:=luci-app-re-homeproxy
 PKG_VERSION:=1
 PKG_RELEASE:=1
-PKG_MAINTAINER:=1andrevich <1andrevich.recede274@passmail.net>
+PKG_MAINTAINER:=moremoneymod
 PKG_LICENSE:=GPL-2.0-only
 PKG_LICENSE_FILES:=LICENSE
 

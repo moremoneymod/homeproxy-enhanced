@@ -44,14 +44,16 @@ Re:HomeProxy — многофункциональная система упра�
 
 Ставит LuCI-приложение, затем интерактивно проводит по выбору ядра прокси и опциональных ByeDPI / Zapret. Работает на APK (25.12+), opkg (24.10) и 23.05 legacy. Выполните по SSH на роутере:
 
+Сначала опубликуйте в этом форке релиз с пакетами: установщик берёт приложение и перевод только из `moremoneymod/homeproxy-enhanced`.
+
 ```sh
-wget -qO- https://raw.githubusercontent.com/1andrevich/homeproxy-hiddify/master/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/moremoneymod/homeproxy-enhanced/master/install.sh | sh
 ```
 
 При заблокированном/замедленном GitHub можно указать зеркало (важно: переменная ставится перед `sh`, а не перед `wget`):
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/1andrevich/homeproxy-hiddify/master/install.sh | GH_MIRROR=https://your.mirror sh
+wget -qO- https://raw.githubusercontent.com/moremoneymod/homeproxy-enhanced/master/install.sh | GH_MIRROR=https://your.mirror sh
 ```
 
 Хотите вручную? Шаги по версиям — ниже.
@@ -61,13 +63,18 @@ wget -qO- https://raw.githubusercontent.com/1andrevich/homeproxy-hiddify/master/
 #### 1. Установка пакета Re:HomeProxy
 
 ```sh
-wget -O /tmp/homeproxy-hiddify.pub https://github.com/1andrevich/homeproxy-hiddify/releases/latest/download/homeproxy-hiddify.pub
-cp /tmp/homeproxy-hiddify.pub /etc/apk/keys/
-wget -O /tmp/luci-app-re-homeproxy.apk "$(wget -qO- 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' | grep -o 'https://github\.com/[^"]*luci-app-re-homeproxy[^"]*\.apk' | head -1)"
-apk add /tmp/luci-app-re-homeproxy.apk
+APP_URL=$(wget -qO- 'https://api.github.com/repos/moremoneymod/homeproxy-enhanced/releases' | grep -o 'https://github\.com/moremoneymod/homeproxy-enhanced/releases/download/[^"]*luci-app-re-homeproxy[^"]*_all\.apk' | head -1)
+[ -n "$APP_URL" ] || { echo 'Сначала опубликуйте релиз форка'; exit 1; }
+wget -O /tmp/luci-app-re-homeproxy.apk "$APP_URL"
+if wget -qO /tmp/homeproxy-enhanced.pub "${APP_URL%/*}/homeproxy-enhanced.pub"; then
+  cp /tmp/homeproxy-enhanced.pub /etc/apk/keys/
+  apk add /tmp/luci-app-re-homeproxy.apk
+else
+  apk add --allow-untrusted /tmp/luci-app-re-homeproxy.apk
+fi
 ```
 
-После того как ключ окажется в `/etc/apk/keys/`, он будет доверенным постоянно — флаг указывать при последующих обновлениях не нужно.
+Если в релизе есть ключ, он добавится в `/etc/apk/keys/` и пакет установится с проверкой подписи. Для неподписанного релиза используется `--allow-untrusted`.
 
 #### 2. Установка компонентов на вкладке **Ядро и службы**
 
@@ -80,7 +87,7 @@ apk add /tmp/luci-app-re-homeproxy.apk
 #### 3. Установка языкового пакета RU
 
 ```sh
-wget -O /tmp/luci-i18n-homeproxy-ru.apk "$(wget -qO- 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' | grep -o 'https://github\.com/[^"]*luci-i18n-homeproxy-ru[^"]*\.apk' | head -1)"
+wget -O /tmp/luci-i18n-homeproxy-ru.apk "$(wget -qO- 'https://api.github.com/repos/moremoneymod/homeproxy-enhanced/releases' | grep -o 'https://github\.com/moremoneymod/homeproxy-enhanced/releases/download/[^"]*luci-i18n-homeproxy-ru[^"]*\.apk' | head -1)"
 apk add /tmp/luci-i18n-homeproxy-ru.apk
 ```
 
@@ -91,7 +98,7 @@ apk add /tmp/luci-i18n-homeproxy-ru.apk
 #### 1. Установка пакета Re:HomeProxy
 
 ```sh
-wget -O /tmp/luci-app-re-homeproxy.ipk "$(wget -qO- 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' | grep -o 'https://github\.com/[^"]*luci-app-re-homeproxy[^"]*\.ipk' | head -1)"
+wget -O /tmp/luci-app-re-homeproxy.ipk "$(wget -qO- 'https://api.github.com/repos/moremoneymod/homeproxy-enhanced/releases' | grep -o 'https://github\.com/moremoneymod/homeproxy-enhanced/releases/download/[^"]*luci-app-re-homeproxy[^"]*\.ipk' | head -1)"
 opkg install /tmp/luci-app-re-homeproxy.ipk
 ```
 
@@ -106,7 +113,7 @@ opkg install /tmp/luci-app-re-homeproxy.ipk
 #### 3. Установка языкового пакета RU
 
 ```sh
-wget -O /tmp/luci-i18n-homeproxy-ru.ipk "$(wget -qO- 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' | grep -o 'https://github\.com/[^"]*luci-i18n-homeproxy-ru[^"]*\.ipk' | head -1)"
+wget -O /tmp/luci-i18n-homeproxy-ru.ipk "$(wget -qO- 'https://api.github.com/repos/moremoneymod/homeproxy-enhanced/releases' | grep -o 'https://github\.com/moremoneymod/homeproxy-enhanced/releases/download/[^"]*luci-i18n-homeproxy-ru[^"]*\.ipk' | head -1)"
 opkg install /tmp/luci-i18n-homeproxy-ru.ipk
 ```
 
@@ -118,9 +125,10 @@ opkg install /tmp/luci-i18n-homeproxy-ru.ipk
 . /etc/openwrt_release; ARCH="$DISTRIB_ARCH"
 command -v apk >/dev/null && EXT=apk || EXT=ipk
 echo "$ARCH / $EXT"
+if [ "$EXT" = apk ]; then wget -O /etc/apk/keys/homeproxy-hiddify.pub https://github.com/1andrevich/homeproxy-hiddify/releases/latest/download/homeproxy-hiddify.pub; fi
 ```
 
-Пакеты hiddify-core и ByeDPI подписаны ключом `homeproxy-hiddify.pub`, который добавляется в доверенные при установке приложения выше; если вы пропустили тот шаг — добавьте `--allow-untrusted` к `apk add`.
+Пакеты upstream hiddify-core и ByeDPI используют собственный ключ `homeproxy-hiddify.pub`. Команды ручной установки выше добавляют его отдельно от ключа приложения форка.
 
 **Ядро прокси — выберите одно** (плюс необходимые модули ядра):
 

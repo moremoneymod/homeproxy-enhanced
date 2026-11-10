@@ -101,8 +101,8 @@ default_prerm' > "$TEMP_DIR/pre-deinstall"
 		--info "description:Re:HomeProxy - modern multi-core proxy platform. Fork of ImmortalWrt HomeProxy" \
 		--info "arch:noarch" \
 		--info "origin:$PKG_NAME" \
-		--info "url:https://github.com/1andrevich/homeproxy-hiddify" \
-		--info "maintainer:1andrevich <1andrevich.recede274@passmail.net>" \
+		--info "url:https://github.com/moremoneymod/homeproxy-enhanced" \
+		--info "maintainer:moremoneymod" \
 		--script "post-install:$TEMP_DIR/post-install" \
 		--script "post-upgrade:$TEMP_DIR/post-upgrade" \
 		--script "pre-deinstall:$TEMP_DIR/pre-deinstall" \
@@ -166,11 +166,11 @@ PYEOF
 		Depends: $IPK_DEPS
 		Conflicts: luci-app-homeproxy luci-app-homeproxy-hiddify
 		Replaces: luci-app-homeproxy luci-app-homeproxy-hiddify
-		Source: https://github.com/1andrevich/homeproxy-hiddify
+		Source: https://github.com/moremoneymod/homeproxy-enhanced
 		SourceName: $PKG_NAME
 		Section: luci
 		SourceDateEpoch: $PKG_SOURCE_DATE_EPOCH
-		Maintainer: 1andrevich <1andrevich.recede274@passmail.net>
+		Maintainer: moremoneymod
 		Architecture: all
 		Installed-Size: TO-BE-FILLED-BY-IPKG-BUILD
 		Description:  Re:HomeProxy - modern multi-core proxy platform. Fork of ImmortalWrt HomeProxy
@@ -233,8 +233,8 @@ if [ "$PKG_MGR" == "apk" ]; then
 		--info "description:Russian translation for luci-app-re-homeproxy" \
 		--info "arch:noarch" \
 		--info "origin:$I18N_PKG_NAME" \
-		--info "url:https://github.com/1andrevich/homeproxy-hiddify" \
-		--info "maintainer:1andrevich <1andrevich.recede274@passmail.net>" \
+		--info "url:https://github.com/moremoneymod/homeproxy-enhanced" \
+		--info "maintainer:moremoneymod" \
 		--info "depends:$PKG_NAME" \
 		${APK_SIGN_KEY:+--sign-key "$APK_SIGN_KEY"} \
 		--files "$I18N_TEMP_PKG_DIR" \
@@ -246,11 +246,11 @@ else
 		Package: $I18N_PKG_NAME
 		Version: $PKG_VERSION
 		Depends: $PKG_NAME
-		Source: https://github.com/1andrevich/homeproxy-hiddify
+		Source: https://github.com/moremoneymod/homeproxy-enhanced
 		SourceName: $I18N_PKG_NAME
 		Section: luci
 		SourceDateEpoch: $PKG_SOURCE_DATE_EPOCH
-		Maintainer: 1andrevich <1andrevich.recede274@passmail.net>
+		Maintainer: moremoneymod
 		Architecture: all
 		Installed-Size: TO-BE-FILLED-BY-IPKG-BUILD
 		Description:  Russian translation for luci-app-re-homeproxy
@@ -290,8 +290,8 @@ if [ "$PKG_MGR" == "apk" ]; then
 		--info "description:Chinese Simplified translation for luci-app-re-homeproxy" \
 		--info "arch:noarch" \
 		--info "origin:$I18N_ZH_PKG_NAME" \
-		--info "url:https://github.com/1andrevich/homeproxy-hiddify" \
-		--info "maintainer:1andrevich <1andrevich.recede274@passmail.net>" \
+		--info "url:https://github.com/moremoneymod/homeproxy-enhanced" \
+		--info "maintainer:moremoneymod" \
 		--info "depends:$PKG_NAME" \
 		${APK_SIGN_KEY:+--sign-key "$APK_SIGN_KEY"} \
 		--files "$I18N_ZH_TEMP_PKG_DIR" \
@@ -303,11 +303,11 @@ else
 		Package: $I18N_ZH_PKG_NAME
 		Version: $PKG_VERSION
 		Depends: $PKG_NAME
-		Source: https://github.com/1andrevich/homeproxy-hiddify
+		Source: https://github.com/moremoneymod/homeproxy-enhanced
 		SourceName: $I18N_ZH_PKG_NAME
 		Section: luci
 		SourceDateEpoch: $PKG_SOURCE_DATE_EPOCH
-		Maintainer: 1andrevich <1andrevich.recede274@passmail.net>
+		Maintainer: moremoneymod
 		Architecture: all
 		Installed-Size: TO-BE-FILLED-BY-IPKG-BUILD
 		Description:  Chinese Simplified translation for luci-app-re-homeproxy
@@ -347,8 +347,8 @@ if [ "$PKG_MGR" == "apk" ]; then
 		--info "description:Farsi (Persian) translation for luci-app-re-homeproxy" \
 		--info "arch:noarch" \
 		--info "origin:$I18N_FA_PKG_NAME" \
-		--info "url:https://github.com/1andrevich/homeproxy-hiddify" \
-		--info "maintainer:1andrevich <1andrevich.recede274@passmail.net>" \
+		--info "url:https://github.com/moremoneymod/homeproxy-enhanced" \
+		--info "maintainer:moremoneymod" \
 		--info "depends:$PKG_NAME" \
 		${APK_SIGN_KEY:+--sign-key "$APK_SIGN_KEY"} \
 		--files "$I18N_FA_TEMP_PKG_DIR" \
@@ -360,11 +360,11 @@ else
 		Package: $I18N_FA_PKG_NAME
 		Version: $PKG_VERSION
 		Depends: $PKG_NAME
-		Source: https://github.com/1andrevich/homeproxy-hiddify
+		Source: https://github.com/moremoneymod/homeproxy-enhanced
 		SourceName: $I18N_FA_PKG_NAME
 		Section: luci
 		SourceDateEpoch: $PKG_SOURCE_DATE_EPOCH
-		Maintainer: 1andrevich <1andrevich.recede274@passmail.net>
+		Maintainer: moremoneymod
 		Architecture: all
 		Installed-Size: TO-BE-FILLED-BY-IPKG-BUILD
 		Description:  Farsi (Persian) translation for luci-app-re-homeproxy

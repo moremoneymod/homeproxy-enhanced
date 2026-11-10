@@ -58,6 +58,18 @@ The **Import .conf** button reads a **WireGuard** or **AmneziaWG** `.conf` file 
 
 ## 3. Subscription URLs (auto-updating)
 
+### Named sources with custom request headers
+
+Create a named source on the **Subscriptions** tab with a stable UCI name, label and provider URL. Add arbitrary HTTP headers as `Name: value`, one per line, such as `x-hwid: ...`. User-Agent also has its own field. URLs and header values are not written to the update log and are redacted from the diagnostics report. They remain in `/etc/config/homeproxy`, so protect backups of that file.
+
+Named sources fetch Xray config arrays, sing-box JSON, base64 and share-link lists directly. Save the source, then use **Update now** to refresh it individually. The **Show imported VLESS links** button exports the imported nodes as `vless://` links containing VPN credentials.
+
+Per-source filters support protocol types, case-insensitive plain words, regex name rules, two-letter country codes derived from provider flag emoji, Auto/EU profiles, and profiles without a flag. This is **label filtering**, not GeoIP. For Xray arrays, choose the primary `proxy` outbound or all compatible outbounds. A failed or empty import retains the previous nodes.
+
+After the first import, select the source under **Routing Nodes → URLTest → URLTest subscription**. Later imports update URLTest membership automatically. The main and UDP URLTests have the same option. Each source has a 1–168 hour update interval; the global auto-update switch checks hourly, while legacy URLs still update at the selected hour.
+
+The old **Subscription URL-s** list remains for compatibility. Move URLs to named sources to use custom headers, filters and automatic URLTest membership.
+
 On the **Subscriptions** tab, add one or more **Subscription URL-s**. The router fetches them and keeps the node list in sync. Re:HomeProxy understands several response formats automatically:
 
 - **Base64 / plain share-link lists** — the classic subscription format (one encoded link per line).

@@ -44,14 +44,16 @@ Optionally legacy build for 23.05 is available in Releases
 
 Installs the LuCI app, then interactively walks you through the proxy core and optional ByeDPI / Zapret. Works on APK (25.12+), opkg (24.10) and 23.05 legacy. Run over SSH on the router:
 
+Publish a release with packages in this fork first; the installer fetches the app and translation only from `moremoneymod/homeproxy-enhanced`.
+
 ```sh
-wget -qO- https://raw.githubusercontent.com/1andrevich/homeproxy-hiddify/master/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/moremoneymod/homeproxy-enhanced/master/install.sh | sh
 ```
 
 Behind a blocked/throttled GitHub, pass a mirror (note: the env var goes on `sh`, not `wget`):
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/1andrevich/homeproxy-hiddify/master/install.sh | GH_MIRROR=https://your.mirror sh
+wget -qO- https://raw.githubusercontent.com/moremoneymod/homeproxy-enhanced/master/install.sh | GH_MIRROR=https://your.mirror sh
 ```
 
 Prefer to do it by hand? Follow the per-version steps below.
@@ -61,13 +63,18 @@ Prefer to do it by hand? Follow the per-version steps below.
 #### 1. Install *luci-app-re-homeproxy* package
 
 ```sh
-wget -O /tmp/homeproxy-hiddify.pub https://github.com/1andrevich/homeproxy-hiddify/releases/latest/download/homeproxy-hiddify.pub
-cp /tmp/homeproxy-hiddify.pub /etc/apk/keys/
-wget -O /tmp/luci-app-re-homeproxy.apk "$(wget -qO- 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' | grep -o 'https://github\.com/[^"]*luci-app-re-homeproxy[^"]*\.apk' | head -1)"
-apk add /tmp/luci-app-re-homeproxy.apk
+APP_URL=$(wget -qO- 'https://api.github.com/repos/moremoneymod/homeproxy-enhanced/releases' | grep -o 'https://github\.com/moremoneymod/homeproxy-enhanced/releases/download/[^"]*luci-app-re-homeproxy[^"]*_all\.apk' | head -1)
+[ -n "$APP_URL" ] || { echo 'Publish a fork release first'; exit 1; }
+wget -O /tmp/luci-app-re-homeproxy.apk "$APP_URL"
+if wget -qO /tmp/homeproxy-enhanced.pub "${APP_URL%/*}/homeproxy-enhanced.pub"; then
+  cp /tmp/homeproxy-enhanced.pub /etc/apk/keys/
+  apk add /tmp/luci-app-re-homeproxy.apk
+else
+  apk add --allow-untrusted /tmp/luci-app-re-homeproxy.apk
+fi
 ```
 
-Once the key is in `/etc/apk/keys/` it is trusted permanently — no flag needed for future updates.
+If the release includes a signing key, it is added to `/etc/apk/keys/` and the package signature is checked. Unsigned releases use `--allow-untrusted`.
 
 #### 2. Install components from the **Core & Tools** tab
 
@@ -82,7 +89,7 @@ Open **Services → Re:HomeProxy → Core & Tools** and install what you need �
 #### 1. Install *luci-app-re-homeproxy* package
 
 ```sh
-wget -O /tmp/luci-app-re-homeproxy.ipk "$(wget -qO- 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' | grep -o 'https://github\.com/[^"]*luci-app-re-homeproxy[^"]*\.ipk' | head -1)"
+wget -O /tmp/luci-app-re-homeproxy.ipk "$(wget -qO- 'https://api.github.com/repos/moremoneymod/homeproxy-enhanced/releases' | grep -o 'https://github\.com/moremoneymod/homeproxy-enhanced/releases/download/[^"]*luci-app-re-homeproxy[^"]*\.ipk' | head -1)"
 opkg install /tmp/luci-app-re-homeproxy.ipk
 ```
 
@@ -102,9 +109,10 @@ The **Core & Tools** tab is recommended — it auto-detects your hardware and pi
 . /etc/openwrt_release; ARCH="$DISTRIB_ARCH"
 command -v apk >/dev/null && EXT=apk || EXT=ipk
 echo "$ARCH / $EXT"
+if [ "$EXT" = apk ]; then wget -O /etc/apk/keys/homeproxy-hiddify.pub https://github.com/1andrevich/homeproxy-hiddify/releases/latest/download/homeproxy-hiddify.pub; fi
 ```
 
-The hiddify-core and ByeDPI packages are signed with the `homeproxy-hiddify.pub` key trusted during the app install above; if you skipped that, add `--allow-untrusted` to `apk add`.
+The upstream hiddify-core and ByeDPI packages use their own `homeproxy-hiddify.pub` key. The manual commands above install it separately from the fork's application key.
 
 **Proxy core — pick one** (plus its required kernel modules):
 
@@ -141,7 +149,7 @@ if [ "$EXT" = apk ]; then apk add /tmp/zapret2.apk; else opkg install /tmp/zapre
 
 ### Optional 
 
-Installation of [Russian Language Pack](https://github.com/1andrevich/homeproxy-hiddify/blob/master/README_ru.md#3-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0-%D1%8F%D0%B7%D1%8B%D0%BA%D0%BE%D0%B2%D0%BE%D0%B3%D0%BE-%D0%BF%D0%B0%D0%BA%D0%B5%D1%82%D0%B0-ru-1)
+Installation of [Russian Language Pack](https://github.com/moremoneymod/homeproxy-enhanced/blob/master/README_ru.md#3-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0-%D1%8F%D0%B7%D1%8B%D0%BA%D0%BE%D0%B2%D0%BE%D0%B3%D0%BE-%D0%BF%D0%B0%D0%BA%D0%B5%D1%82%D0%B0-ru-1)
 
 If using "Custom JSON" — see the **[Custom JSON Config](../../wiki/Custom-JSON-Config-en)** wiki page for full details.
 

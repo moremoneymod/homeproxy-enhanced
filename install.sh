@@ -1,6 +1,6 @@
 #!/bin/sh
 # Установщик Re:HomeProxy для OpenWrt (в одном скрипте: APK / opkg / 23.05 legacy)
-# https://github.com/1andrevich/homeproxy-hiddify
+# https://github.com/moremoneymod/homeproxy-enhanced
 #
 # Вручную ставится только LuCI-приложение + ключ подписи, а ядро, ByeDPI и Zapret
 # устанавливаются через собственный бэкенд приложения (core_mgmt.uc + rpcd-объект
@@ -9,9 +9,9 @@
 # проверенной логикой, что и графический интерфейс.
 #
 # Установка (одной строкой — ввод читается из /dev/tty, пайп остаётся интерактивным):
-#   wget -qO- https://raw.githubusercontent.com/1andrevich/homeproxy-hiddify/master/install.sh | sh
+#   wget -qO- https://raw.githubusercontent.com/moremoneymod/homeproxy-enhanced/master/install.sh | sh
 # Либо в два шага:
-#   wget -O /tmp/install.sh https://raw.githubusercontent.com/1andrevich/homeproxy-hiddify/master/install.sh
+#   wget -O /tmp/install.sh https://raw.githubusercontent.com/moremoneymod/homeproxy-enhanced/master/install.sh
 #   sh /tmp/install.sh
 #
 # При заблокированном/замедленном GitHub можно указать зеркало:
@@ -45,6 +45,7 @@ dl() {
 	return 1
 }
 api() { wget -qO- --timeout=20 "$1" 2>/dev/null; }   # GitHub API (без зеркала)
+APP_REPO='moremoneymod/homeproxy-enhanced'
 
 echo
 ok "===== Установщик Re:HomeProxy ====="
@@ -69,26 +70,55 @@ info "Версия: OpenWrt $VER  |  Архитектура: $ARCH  |  Мене�
 
 # ----------------------------------------------------------- 1. LuCI-приложение + ключ
 ok "[1/5] Устанавливаю LuCI-приложение Re:HomeProxy..."
+if [ "${MASTER:-1}" = 1 ]; then
+	ok "[1/5] Устанавливаю код напрямую из master..."
+	SRC=/tmp/homeproxy-master
+	rm -rf "$SRC" /tmp/homeproxy-master.tar.gz
+	mkdir -p "$SRC"
+	dl "https://codeload.github.com/$APP_REPO/tar.gz/refs/heads/master" /tmp/homeproxy-master.tar.gz \
+		|| die "Не удалось скачать master (попробуйте GH_MIRROR=...)."
+	tar -xzf /tmp/homeproxy-master.tar.gz -C "$SRC" --strip-components=1 \
+		|| die "Не удалось распаковать master."
+	[ -d "$SRC/root" ] && cp -fpR "$SRC/root"/. / \
+		|| die "В архиве master не найден каталог root/."
+	[ -d "$SRC/htdocs" ] && { mkdir -p /www; cp -fpR "$SRC/htdocs"/. /www/; } \
+		|| die "В архиве master не найден каталог htdocs/."
+	rm -rf "$SRC" /tmp/homeproxy-master.tar.gz
+	ok "  код master установлен"
+else
+	RELEASES=$(api "https://api.github.com/repos/$APP_REPO/releases")
+[ -n "$RELEASES" ] || die "Не удалось получить список релизов $APP_REPO из GitHub API. Проверьте доступ к api.github.com."
+APPURL=$(printf '%s\n' "$RELEASES" | grep -o "https://github\.com/$APP_REPO/releases/download/[^\"]*luci-app-re-homeproxy[^\"]*${SUFFIX}\.${EXT}" | head -1)
+[ -n "$APPURL" ] || die "Не нашёл пакет форка $APP_REPO (luci-app-re-homeproxy${SUFFIX}.${EXT}). Опубликуйте релиз форка и повторите установку."
+APP_RELEASE_URL=${APPURL%/*}
+KEY_OK=0
 if [ "$PM" = apk ]; then
-	if [ ! -f /etc/apk/keys/homeproxy-hiddify.pub ]; then
-		dl "https://github.com/1andrevich/homeproxy-hiddify/releases/latest/download/homeproxy-hiddify.pub" /tmp/hp.pub \
-			&& cp /tmp/hp.pub /etc/apk/keys/ && rm -f /tmp/hp.pub && ok "  ключ подписи добавлен в доверенные" \
-			|| warn "  не удалось скачать ключ подписи — поставлю без проверки подписи"
+	KEYURL="$APP_RELEASE_URL/homeproxy-enhanced.pub"
+	if dl "$KEYURL" /tmp/homeproxy-enhanced.pub; then
+		cp /tmp/homeproxy-enhanced.pub /etc/apk/keys/homeproxy-enhanced.pub || die "Не удалось установить ключ подписи форка."
+		rm -f /tmp/homeproxy-enhanced.pub
+		KEY_OK=1
+		ok "  ключ подписи форка добавлен в доверенные"
+	else
+		warn "  ключ подписи форка не опубликован — пакет будет установлен как неподписанный"
 	fi
 fi
-APPURL=$(api 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' \
-	| grep -o "https://github\.com/[^\"]*luci-app-re-homeproxy[^\"]*${SUFFIX}\.${EXT}" | head -1)
-[ -n "$APPURL" ] || die "Не нашёл пакет luci-app-re-homeproxy${SUFFIX}.${EXT} (GitHub заблокирован? попробуйте GH_MIRROR=...)."
 dl "$APPURL" /tmp/app.$EXT || die "Не удалось скачать приложение (попробуйте GH_MIRROR=...)."
 if [ "$PM" = apk ]; then
-	apk add /tmp/app.$EXT 2>/dev/null || apk add --allow-untrusted /tmp/app.$EXT || die "apk add завершился ошибкой."
+	if [ "$KEY_OK" = 1 ]; then
+		apk add /tmp/app.$EXT || die "apk add не смог проверить или установить пакет форка."
+	else
+		apk add --allow-untrusted /tmp/app.$EXT || die "apk add завершился ошибкой."
+	fi
 else
 	opkg update >/dev/null 2>&1; opkg install /tmp/app.$EXT || die "opkg install завершился ошибкой."
 fi
 rm -f /tmp/app.$EXT
 ok "  приложение установлено."
+fi
 
 # Русский язык интерфейса (по умолчанию — да)
+if [ "${MASTER:-1}" != 1 ]; then
 ask "  Установить пакет русского языка? [Y/n] (по умолчанию Y):"
 case "$REPLY" in
 	n|N|no|NO|нет|Нет|н|Н) ;;  # отказ — пропускаем
@@ -97,16 +127,28 @@ case "$REPLY" in
 		# базовый перевод интерфейса LuCI (из фида, best-effort)
 		if [ "$PM" = apk ]; then apk add luci-i18n-base-ru >/dev/null 2>&1; else opkg install luci-i18n-base-ru >/dev/null 2>&1; fi
 		# перевод самого приложения (из релиза homeproxy)
-		LURL=$(api 'https://api.github.com/repos/1andrevich/homeproxy-hiddify/releases' \
-			| grep -o "https://github\.com/[^\"]*luci-i18n-homeproxy-ru[^\"]*\.${EXT}" | head -1)
+		LURL=$(printf '%s\n' "$RELEASES" \
+			| grep -o "https://github\.com/$APP_REPO/releases/download/[^\"]*luci-i18n-homeproxy-ru[^\"]*\.${EXT}" \
+			| grep -F "$APP_RELEASE_URL/" | head -1)
 		if [ -n "$LURL" ] && dl "$LURL" /tmp/i18n.$EXT; then
-			if [ "$PM" = apk ]; then apk add /tmp/i18n.$EXT 2>/dev/null || apk add --allow-untrusted /tmp/i18n.$EXT; \
-			else opkg install /tmp/i18n.$EXT; fi
+			if [ "$PM" = apk ] && [ "$KEY_OK" = 1 ]; then
+				apk add /tmp/i18n.$EXT
+			elif [ "$PM" = apk ]; then
+				apk add --allow-untrusted /tmp/i18n.$EXT
+			else
+				opkg install /tmp/i18n.$EXT
+			fi
+			if [ "$?" = 0 ]; then
+				uci set luci.main.lang=ru; uci commit luci
+				ok "  русский язык установлен"
+			else
+				warn "  пакет перевода не удалось установить"
+			fi
 		else warn "  перевод приложения не найден — пропускаю"; fi
 		rm -f /tmp/i18n.$EXT
-		uci set luci.main.lang=ru; uci commit luci
-		ok "  русский язык установлен" ;;
+		;;
 esac
+fi
 
 # Прописываем зеркало в бэкенд, чтобы делегированные загрузки тоже его использовали
 if [ -n "$GH_MIRROR" ]; then uci set homeproxy.config.github_mirror="$GH_MIRROR"; uci commit homeproxy; fi

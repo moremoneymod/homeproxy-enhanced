@@ -98,8 +98,8 @@ jobs:
           if [ -n "${{ secrets.APK_SIGNING_KEY }}" ]; then
             echo "${{ secrets.APK_SIGNING_KEY }}" > /tmp/apk-signing.key
             chmod 600 /tmp/apk-signing.key
-            openssl rsa -in /tmp/apk-signing.key -pubout -out .github/homeproxy-hiddify.pub 2>/dev/null || \
-            openssl ec  -in /tmp/apk-signing.key -pubout -out .github/homeproxy-hiddify.pub 2>/dev/null || true
+            openssl rsa -in /tmp/apk-signing.key -pubout -out .github/homeproxy-enhanced.pub 2>/dev/null || \
+            openssl ec  -in /tmp/apk-signing.key -pubout -out .github/homeproxy-enhanced.pub 2>/dev/null || true
             echo "APK_SIGN_KEY=/tmp/apk-signing.key" >> $GITHUB_ENV
           else
             echo "No APK_SIGNING_KEY secret set — building unsigned package"
@@ -189,8 +189,8 @@ jobs:
         uses: actions/upload-artifact@v7
         if: github.event_name != 'release' && env.APK_SIGN_KEY != ''
         with:
-          name: homeproxy-hiddify.pub
-          path: .github/homeproxy-hiddify.pub
+          name: homeproxy-enhanced.pub
+          path: .github/homeproxy-enhanced.pub
 
       - name: Publishing draft pre-release to GitHub Releases
         uses: svenstaro/upload-release-action@v2
