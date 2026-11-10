@@ -1132,17 +1132,28 @@ function parse_uri(uri) {
 }
 
 function main() {
-	if (via_proxy !== '1') {
-		log('Stopping service...');
-		init_action('homeproxy', 'stop');
-	}
+	let serviceStopped = false;
+	let serviceTouched = false;
 
 	for (let source in sources) {
+		const fetchViaProxy = source['.name'] ? source.fetch_mode === 'proxy' : via_proxy === '1';
+		if (!fetchViaProxy && !serviceStopped) {
+			log('Stopping service for direct provider download...');
+			init_action('homeproxy', 'stop');
+			serviceStopped = true;
+			serviceTouched = true;
+		} else if (fetchViaProxy && serviceStopped) {
+			log('Starting service for proxied subscription download...');
+			init_action('homeproxy', 'start');
+			serviceStopped = false;
+		}
 		const url = replace(source.url, /#.*$/, '');
 		const sourceName = source['.name'] || 'legacy';
 		const groupHash = md5(source['.name'] ? `source:${source['.name']}` : url);
 		node_cache[groupHash] = {};
-		const headers = source.headers || [];
+		const headers = map(source.headers || [], h => h);
+		if (source['.name'] && !length(filter(headers, h => match(h, /^Accept:/i))))
+			push(headers, 'Accept: application/json, text/plain, */*');
 		/* Named sources target subscription providers directly. Use the v2rayNG
 		 * identity by default instead of an empty/global legacy value. */
 		const sourceUA = source.user_agent || 'v2rayNG/1.10.5';
@@ -1293,7 +1304,7 @@ function main() {
 	if (isEmpty(node_result)) {
 		log('Failed to update subscriptions: no valid node found.');
 
-		if (via_proxy !== '1') {
+		if (serviceStopped) {
 			log('Starting service...');
 			init_action('homeproxy', 'start');
 		}
@@ -1376,7 +1387,7 @@ function main() {
 	});
 	uci.commit(uciconfig);
 
-	let need_restart = (via_proxy !== '1');
+	let need_restart = serviceTouched;
 	if (!isEmpty(main_node)) {
 		const first_server = uci.get_first(uciconfig, ucinode);
 		if (first_server) {

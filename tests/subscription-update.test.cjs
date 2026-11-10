@@ -14,6 +14,13 @@ test('named sources use a persisted v2rayNG User-Agent by default', () => {
   assert.match(nodeView, /sourceOption\.default = 'v2rayNG\/1\.10\.5'/);
 });
 
+test('named sources default to direct provider downloads with provider-compatible Accept', () => {
+  assert.match(source, /source\.fetch_mode === 'proxy'/);
+  assert.match(source, /Accept: application\/json, text\/plain, \*\/\*/);
+  assert.match(nodeView, /sourceOption\.value\('direct', _\('Internet provider \(direct\)'\)\)/);
+  assert.match(nodeView, /sourceOption\.default = 'direct'/);
+});
+
 function extract(name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1);
@@ -85,7 +92,10 @@ function harness(response) {
     main_node: 'nil', main_udp_node: 'same', via_proxy: '1',
     allow_insecure: '0', packet_encoding: 'xudp', filter_mode: 'disabled', filter_keywords: [], user_agent: null,
     sing_features: {with_utls: true, with_quic: true},
-    wGET: url => Object.hasOwn(response, url) ? response[url] : response.current,
+    wGET: (url, ua, headers) => {
+      logs.push(`wget ua=${ua} headers=${JSON.stringify(headers || [])}`);
+      return Object.hasOwn(response, url) ? response[url] : response.current;
+    },
     log: message => logs.push(message), init_action: () => {},
     md5: value => crypto.createHash('md5').update(value).digest('hex'),
     isEmpty: value => !value || value === 'nil' || (Array.isArray(value) && !value.length) ||
@@ -134,6 +144,14 @@ test('update imports nodes, keeps ID across label changes, and syncs routing URL
   assert.equal(nodes[0][0], id);
   assert.equal(nodes[0][1].label, 'Berlin');
   assert.equal(state.route.urltest_nodes[0], id);
+});
+
+test('direct source stops HomeProxy and sends the provider request contract', () => {
+  const {env, logs} = harness({current: JSON.stringify(fixture('Direct'))});
+  env.main();
+  assert.ok(logs.includes('Stopping service for direct provider download...'));
+  assert.ok(logs.some(line => line.includes('wget ua=v2rayNG/1.10.5') &&
+    line.includes('Accept: application/json, text/plain, */*')));
 });
 
 test('failed fetch retains imported nodes and URLTest membership', () => {

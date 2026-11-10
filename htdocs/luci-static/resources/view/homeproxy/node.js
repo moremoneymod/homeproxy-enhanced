@@ -2217,6 +2217,11 @@ return view.extend({
 		sourceOption = sourceSection.option(form.Value, 'user_agent', _('User-Agent'));
 		sourceOption.default = 'v2rayNG/1.10.5';
 		sourceOption.placeholder = 'v2rayNG/1.10.5';
+		sourceOption = sourceSection.option(form.ListValue, 'fetch_mode', _('Download via'));
+		sourceOption.value('direct', _('Internet provider (direct)'));
+		sourceOption.value('proxy', _('HomeProxy'));
+		sourceOption.default = 'direct';
+		sourceOption.rmempty = false;
 		sourceOption = sourceSection.option(form.ListValue, 'xray_outbound_mode', _('Xray outbounds'));
 		sourceOption.value('primary', _('Primary proxy only'));
 		sourceOption.value('all', _('All compatible proxy outbounds'));
