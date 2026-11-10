@@ -2258,7 +2258,7 @@ return view.extend({
 		sourceOption.description = _('Save source settings before updating.');
 		sourceOption.onclick = function(section_id) {
 			ui.showModal(_('Updating subscription'), [E('p', { class: 'spinning' }, _('Fetching nodes, please wait...'))]);
-			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.uc', [section_id])
+			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.sh', [section_id])
 				.then(() => showSubscriptionLog(null, true))
 				.catch(err => showSubscriptionLog(err, false));
 		};
@@ -2348,7 +2348,7 @@ return view.extend({
 				E('p', { 'class': 'spinning' }, _('Fetching nodes, please wait...'))
 			]);
 
-			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.uc')
+			return fs.exec_direct('/etc/homeproxy/scripts/update_subscriptions.sh')
 				.then(() => showSubscriptionLog(null, true))
 				.catch(err => showSubscriptionLog(err, false));
 		}

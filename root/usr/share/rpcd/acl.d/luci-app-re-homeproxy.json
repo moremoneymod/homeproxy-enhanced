@@ -4,6 +4,7 @@
 		"read": {
 			"file": {
 				"/etc/homeproxy/scripts/update_subscriptions.uc": [ "exec" ],
+				"/etc/homeproxy/scripts/update_subscriptions.sh": [ "exec" ],
 				"/etc/homeproxy/scripts/export_subscription_links.uc": [ "read" ],
 				"/usr/bin/ucode": [ "exec" ],
 				"/etc/homeproxy/zapret_candidates.json": [ "read" ],

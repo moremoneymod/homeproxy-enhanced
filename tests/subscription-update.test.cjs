@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const source = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.uc'), 'utf8');
 const nodeView = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-static/resources/view/homeproxy/node.js'), 'utf8');
 const fetchHelper = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/fetch_subscription.sh'), 'utf8');
+const updateLauncher = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.sh'), 'utf8');
 
 test('named sources use a persisted v2rayNG User-Agent by default', () => {
   assert.match(source, /source\.user_agent \|\| 'v2rayNG\/1\.10\.5'/);
@@ -33,6 +34,12 @@ test('updater always logs startup and never restarts HomeProxy after a fetch err
   const trailer = source.slice(source.lastIndexOf("if (!isEmpty(sources))"));
   assert.doesNotMatch(trailer, /init_action\('homeproxy'/);
   assert.match(trailer, /No enabled subscription source matched/);
+});
+
+test('shell launcher captures ucode loader failures before the updater starts', () => {
+  assert.match(updateLauncher, /ucode \/etc\/homeproxy\/scripts\/update_subscriptions\.uc/);
+  assert.match(updateLauncher, /2>> "\$LOG"/);
+  assert.match(nodeView, /exec_direct\('\/etc\/homeproxy\/scripts\/update_subscriptions\.sh'/);
 });
 
 function extract(name) {
