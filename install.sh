@@ -77,11 +77,13 @@ if [ "${MASTER:-1}" = 1 ]; then
 	mkdir -p "$SRC"
 	dl "https://codeload.github.com/$APP_REPO/tar.gz/refs/heads/master" /tmp/homeproxy-master.tar.gz \
 		|| die "Не удалось скачать master (попробуйте GH_MIRROR=...)."
-	tar -xzf /tmp/homeproxy-master.tar.gz -C "$SRC" --strip-components=1 \
+	tar -xzf /tmp/homeproxy-master.tar.gz -C "$SRC" \
 		|| die "Не удалось распаковать master."
-	[ -d "$SRC/root" ] && cp -fpR "$SRC/root"/. / \
+	MASTER_ROOT=$(find "$SRC" -type d -name root 2>/dev/null | head -1)
+	MASTER_HTDOCS=$(find "$SRC" -type d -name htdocs 2>/dev/null | head -1)
+	[ -d "$MASTER_ROOT" ] && cp -fpR "$MASTER_ROOT"/. / \
 		|| die "В архиве master не найден каталог root/."
-	[ -d "$SRC/htdocs" ] && { mkdir -p /www; cp -fpR "$SRC/htdocs"/. /www/; } \
+	[ -d "$MASTER_HTDOCS" ] && { mkdir -p /www; cp -fpR "$MASTER_HTDOCS"/. /www/; } \
 		|| die "В архиве master не найден каталог htdocs/."
 	rm -rf "$SRC" /tmp/homeproxy-master.tar.gz
 	ok "  код master установлен"
