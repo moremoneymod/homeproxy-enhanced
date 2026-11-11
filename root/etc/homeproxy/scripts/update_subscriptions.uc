@@ -1148,10 +1148,14 @@ function main() {
 		 * identity by default instead of an empty/global legacy value. */
 		const sourceUA = source.user_agent || 'v2rayNG/1.10.5';
 		const routeId = source.fetch_outbound || '';
+		let routeSum = 0;
+		for (let ri = 0; ri < length(routeId); ri++) routeSum += ord(routeId, ri);
+		const routePort = routeId ? (5400 + (routeSum % 500)) : '';
+		const fetchRoute = routeId ? `${routeId}|${routePort}` : '';
 
 		/* Legacy subscriptions keep the Hiddify probe. Named sources make a single,
 		 * explicitly configured request, including all custom headers. */
-		const fetchResult = wGETResult(url, source['.name'] ? sourceUA : 'HiddifyNext/2.0.0', headers, fetchMode, routeId);
+		const fetchResult = wGETResult(url, source['.name'] ? sourceUA : 'HiddifyNext/2.0.0', headers, fetchMode, fetchRoute);
 		let res = fetchResult.body;
 		log(sprintf('Fetch %s: %s.', sourceName,
 			fetchResult.stderr || `route=${fetchMode} wget_exit=${fetchResult.exitcode}`));
@@ -1189,7 +1193,7 @@ function main() {
 
 		if (isEmpty(nodes) && !source['.name']) {
 			/* Fallback: fetch with configured user_agent */
-			res = wGET(url, user_agent, headers, fetchMode, routeId);
+			res = wGET(url, user_agent, headers, fetchMode, fetchRoute);
 
 			/* Empty or HTML response: server may require /raw suffix (e.g. HAPP-style
 			 * subscription servers that serve a web page by default). */
@@ -1197,7 +1201,7 @@ function main() {
 				const rawUrl = replace(url, /\/*$/, '') + '/raw';
 				log(sprintf('%s from %s, retrying with /raw.',
 					isEmpty(res) ? 'Empty response' : 'HTML response', sourceName));
-				const rawRes = wGET(rawUrl, user_agent, headers, fetchMode, routeId);
+				const rawRes = wGET(rawUrl, user_agent, headers, fetchMode, fetchRoute);
 				if (!isEmpty(rawRes) && !match(rawRes, /^\s*</))
 					res = rawRes;
 			}

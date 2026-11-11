@@ -12,6 +12,7 @@ const clientView = fs.readFileSync(path.join(__dirname, '..', 'htdocs/luci-stati
 const fetchHelper = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/fetch_subscription.sh'), 'utf8');
 const updateLauncher = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/update_subscriptions.sh'), 'utf8');
 const installer = fs.readFileSync(path.join(__dirname, '..', 'install.sh'), 'utf8');
+const generator = fs.readFileSync(path.join(__dirname, '..', 'root/etc/homeproxy/scripts/generate_client.uc'), 'utf8');
 
 test('named sources use a persisted v2rayNG User-Agent by default', () => {
   assert.match(source, /source\.user_agent \|\| 'v2rayNG\/1\.10\.5'/);
@@ -69,9 +70,18 @@ test('master installer installs the ucode digest dependency explicitly', () => {
 test('updater requires single-writer flock and explicit route modes', () => {
   assert.match(updateLauncher, /flock -n 9/);
   assert.match(source, /source\.fetch_mode \|\| 'direct'/);
-  assert.match(source, /wGET\(url, user_agent, headers, fetchMode, routeId\)/);
+  assert.match(source, /wGET\(url, user_agent, headers, fetchMode, fetchRoute\)/);
   assert.match(nodeView, /sourceOption\.value\('routing_node'/);
   assert.match(nodeView, /fetch_outbound/);
+});
+
+test('routing-node subscriptions get loopback ingress and isolated route rules', () => {
+  assert.match(generator, /subscription_ingresses/);
+  assert.match(generator, /listen: '127\.0\.0\.1'/);
+  assert.match(generator, /inbound: ingress\.tag/);
+  assert.match(generator, /outbound: ingress\.outbound/);
+  assert.match(fetchHelper, /http_proxy=\"\$PROXY_URL\"/);
+  assert.match(source, /const fetchRoute = routeId \? `\$\{routeId\}\|\$\{routePort\}`/);
 });
 
 test('routing ports default is empty rather than invalid literal all', () => {

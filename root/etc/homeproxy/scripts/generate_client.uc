@@ -963,6 +963,25 @@ if (!isEmpty(main_node)) {
 
 /* Inbound start */
 config.inbounds = [];
+const subscription_ingresses = [], subscription_ports = {};
+function subscription_port(id) {
+	let sum = 0;
+	for (let i = 0; i < length(id); i++) sum += ord(id, i);
+	return 5400 + (sum % 500);
+}
+uci.foreach(uciconfig, 'subscription_source', (source) => {
+	if (source.enabled === '0' || !source.url || !(source.fetch_mode in ['routing_node', 'outbound']) || isEmpty(source.fetch_outbound)) return;
+	const outbound = get_outbound(source.fetch_outbound);
+	if (isEmpty(outbound) || !has_outbound(outbound))
+		die(sprintf("Subscription source %s references unavailable Routing Node %s.", source['.name'], source.fetch_outbound));
+	const port = subscription_port(source.fetch_outbound);
+	if (subscription_ports[port] && subscription_ports[port] !== source.fetch_outbound)
+		die(sprintf("Subscription Routing Node port collision for %s and %s.", subscription_ports[port], source.fetch_outbound));
+	subscription_ports[port] = source.fetch_outbound;
+	const tag = 'subscription-' + source['.name'] + '-in';
+	push(subscription_ingresses, { tag: tag, port: port, outbound: outbound });
+	push(config.inbounds, { type: 'mixed', tag: tag, listen: '127.0.0.1', listen_port: port, set_system_proxy: false });
+});
 
 push(config.inbounds, {
 	type: 'direct',
@@ -1442,6 +1461,9 @@ config.route = {
 	default_interface: default_interface,
 	default_mark: strToInt(self_mark)
 };
+
+for (let ingress in subscription_ingresses)
+	push(config.route.rules, { inbound: ingress.tag, action: 'route', outbound: ingress.outbound });
 
 /* Routing rules */
 if (!isEmpty(main_node)) {

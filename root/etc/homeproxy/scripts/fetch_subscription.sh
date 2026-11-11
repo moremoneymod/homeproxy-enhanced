@@ -7,6 +7,7 @@ URL=$2
 UA=$3
 ROUTE_ID=$4
 shift 4
+ROUTE_PORT=${ROUTE_ID#*|}
 
 TMP="/tmp/homeproxy-sub-fetch.$$"
 ADDED4=""
@@ -100,13 +101,17 @@ fi
 
 if [ "$MODE" = outbound ]; then
 	[ -n "$ROUTE_ID" ] || { echo 'stage=route error=routing_node_required' >&2; exit 5; }
-	echo 'stage=route error=selected_outbound_not_available' >&2
-	exit 5
+	case "$ROUTE_PORT" in ''|*[!0-9]*) echo 'stage=route error=invalid_routing_node_port' >&2; exit 5;; esac
+	PROXY_URL="http://127.0.0.1:$ROUTE_PORT"
 fi
 
  : > "$TMP.body"
 set -- /usr/bin/wget -O "$TMP.body" --user-agent "$UA" --timeout=35 "$@" "$URL"
-"$@" 2>"$TMP.headers"
+if [ -n "$PROXY_URL" ]; then
+	http_proxy="$PROXY_URL" https_proxy="$PROXY_URL" "$@" 2>"$TMP.headers"
+else
+	"$@" 2>"$TMP.headers"
+fi
 rc=$?
 status=$(sed -n 's/^[[:space:]]*HTTP\/[0-9.]* \([0-9][0-9][0-9]\).*/\1/p' "$TMP.headers" | tail -1)
 bytes=$(wc -c < "$TMP.body" 2>/dev/null || echo 0)
