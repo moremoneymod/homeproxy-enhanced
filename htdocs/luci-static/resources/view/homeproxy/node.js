@@ -2219,16 +2219,26 @@ return view.extend({
 		sourceOption.placeholder = 'v2rayNG/1.10.5';
 		sourceOption = sourceSection.option(form.ListValue, 'fetch_mode', _('Download via'));
 		sourceOption.value('direct', _('Internet provider (direct)'));
+		sourceOption.value('routing_node', _('Routing Node'));
 		sourceOption.value('system', _('System routing (legacy HomeProxy)'));
-		sourceOption.value('outbound', _('Selected outbound'));
 		sourceOption.value('proxy', _('System routing (legacy HomeProxy)'));
 		sourceOption.default = 'direct';
 		sourceOption.rmempty = false;
-		sourceOption = sourceSection.option(form.Value, 'fetch_outbound', _('Fetch outbound'));
-	sourceOption.depends('fetch_mode', 'outbound');
-	sourceOption.validate = function(section_id, value) {
-		return uci.get(data[0], value) ? true : _('Select an existing outbound node');
-	};
+		sourceOption = sourceSection.option(form.ListValue, 'fetch_outbound', _('Routing Node'));
+		sourceOption.depends('fetch_mode', 'routing_node');
+		sourceOption.value('', _('-- Select Routing Node --'));
+		uci.sections(data[0], 'routing_node', function(rn) {
+			if (rn.enabled !== '0')
+				sourceOption.value(rn['.name'], rn.label || rn['.name']);
+		});
+		sourceOption.validate = function(section_id, value) {
+			if (!value) return _('Select a Routing Node');
+			let found = false;
+			uci.sections(data[0], 'routing_node', function(rn) {
+				if (rn['.name'] === value && rn.enabled !== '0') found = true;
+			});
+			return found || _('Select an enabled Routing Node');
+		};
 		sourceOption = sourceSection.option(form.ListValue, 'xray_outbound_mode', _('Xray outbounds'));
 		sourceOption.value('primary', _('Primary proxy only'));
 		sourceOption.value('all', _('All compatible proxy outbounds'));

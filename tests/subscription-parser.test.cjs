@@ -123,11 +123,11 @@ test('wget helper passes all headers and rejects line injection', () => {
     extractFrom(helperSource, 'wGETResult'),
     extractFrom(helperSource, 'wGET')
   ].join('\n').replaceAll('export function', 'function')), http);
-  assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['x-hwid: synthetic', 'X-Token: a b'], 'system'), 'ok');
+  assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['x-hwid: synthetic', 'X-Token: a b'], 'system', ''), 'ok');
   assert.match(calls[0], /--header 'x-hwid: synthetic'/);
   assert.match(calls[0], /--header 'X-Token: a b'/);
-  assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['X-Token: ok\r\nInjected: yes'], 'system'), null);
-  assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['User-Agent: v2rayNG/1.10.5'], 'system'), 'ok');
+  assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['X-Token: ok\r\nInjected: yes'], 'system', ''), null);
+  assert.equal(http.wGET('https://example.test/sub', 'Custom/1', ['User-Agent: v2rayNG/1.10.5'], 'system', ''), 'ok');
   assert.match(calls[1], /fetch_subscription\.sh 'system' '[^']+' 'v2rayNG\/1\.10\.5'/);
   assert.doesNotMatch(calls[1], /--header 'User-Agent:/);
   assert.equal(calls.length, 2);

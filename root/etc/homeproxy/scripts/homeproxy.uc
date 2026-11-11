@@ -69,7 +69,7 @@ export function getTime(epoch) {
 
 };
 
-export function wGETResult(url, ua, headers, mode) {
+export function wGETResult(url, ua, headers, mode, route_id) {
 	if (!url || type(url) !== 'string')
 		return { body: null, exitcode: 2, stderr: 'stage=request error=invalid_url' };
 
@@ -91,7 +91,7 @@ export function wGETResult(url, ua, headers, mode) {
 	if (!mode || index(['direct', 'system', 'proxy', 'outbound', 'direct-native'], mode) < 0)
 		return { body: null, exitcode: 2, stderr: 'stage=route error=explicit_mode_required' };
 	const output = executeCommand(
-		`${HP_DIR}/scripts/fetch_subscription.sh ${shellQuote(mode)} ${shellQuote(url)} ${shellQuote(ua)}${options}`
+		`${HP_DIR}/scripts/fetch_subscription.sh ${shellQuote(mode)} ${shellQuote(url)} ${shellQuote(ua)} ${shellQuote(route_id || '')}${options}`
 	) || {};
 	return {
 		body: output.exitcode === 0 && !output.too_large && !output.binary ? trim(output.stdout) : null,
@@ -102,8 +102,8 @@ export function wGETResult(url, ua, headers, mode) {
 	};
 };
 
-export function wGET(url, ua, headers, mode) {
-	return wGETResult(url, ua, headers, mode).body;
+export function wGET(url, ua, headers, mode, route_id) {
+	return wGETResult(url, ua, headers, mode, route_id).body;
 };
 /* Utilities end */
 

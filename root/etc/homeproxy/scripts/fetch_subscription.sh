@@ -5,7 +5,8 @@
 MODE=$1
 URL=$2
 UA=$3
-shift 3
+ROUTE_ID=$4
+shift 4
 
 TMP="/tmp/homeproxy-sub-fetch.$$"
 ADDED4=""
@@ -98,6 +99,7 @@ if [ "$MODE" = direct ]; then
 fi
 
 if [ "$MODE" = outbound ]; then
+	[ -n "$ROUTE_ID" ] || { echo 'stage=route error=routing_node_required' >&2; exit 5; }
 	echo 'stage=route error=selected_outbound_not_available' >&2
 	exit 5
 fi

@@ -69,8 +69,8 @@ test('master installer installs the ucode digest dependency explicitly', () => {
 test('updater requires single-writer flock and explicit route modes', () => {
   assert.match(updateLauncher, /flock -n 9/);
   assert.match(source, /source\.fetch_mode \|\| 'direct'/);
-  assert.match(source, /wGET\(url, user_agent, headers, fetchMode\)/);
-  assert.match(nodeView, /sourceOption\.value\('outbound'/);
+  assert.match(source, /wGET\(url, user_agent, headers, fetchMode, routeId\)/);
+  assert.match(nodeView, /sourceOption\.value\('routing_node'/);
   assert.match(nodeView, /fetch_outbound/);
 });
 
