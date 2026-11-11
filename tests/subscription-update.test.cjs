@@ -62,6 +62,8 @@ test('shell launcher captures ucode loader failures before the updater starts', 
 test('master installer installs the ucode digest dependency explicitly', () => {
   assert.match(installer, /apk add ucode-mod-digest/);
   assert.match(installer, /opkg install ucode-mod-digest/);
+  assert.match(installer, /apk add ucode-mod-digest flock/);
+  assert.match(installer, /opkg install ucode-mod-digest flock/);
 });
 
 test('updater requires single-writer flock and explicit route modes', () => {
