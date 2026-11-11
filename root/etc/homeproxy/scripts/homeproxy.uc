@@ -88,7 +88,7 @@ export function wGETResult(url, ua, headers, mode) {
 		}
 		options += ` --header ${shellQuote(header)}`;
 	}
-	if (!mode || !['direct', 'system', 'proxy', 'outbound', 'direct-native'].includes(mode))
+	if (!mode || index(['direct', 'system', 'proxy', 'outbound', 'direct-native'], mode) < 0)
 		return { body: null, exitcode: 2, stderr: 'stage=route error=explicit_mode_required' };
 	const output = executeCommand(
 		`${HP_DIR}/scripts/fetch_subscription.sh ${shellQuote(mode)} ${shellQuote(url)} ${shellQuote(ua)}${options}`

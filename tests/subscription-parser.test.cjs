@@ -131,6 +131,7 @@ test('wget helper passes all headers and rejects line injection', () => {
   assert.match(calls[1], /fetch_subscription\.sh 'system' '[^']+' 'v2rayNG\/1\.10\.5'/);
   assert.doesNotMatch(calls[1], /--header 'User-Agent:/);
   assert.equal(calls.length, 2);
+  assert.doesNotMatch(helperSource, /\.includes\(/);
 });
 
 test('exporter assembles a VLESS REALITY share link from imported node', () => {
