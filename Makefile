@@ -9,7 +9,8 @@ LUCI_TITLE:=Re:HomeProxy - multi-core proxy platform (fork of ImmortalWrt HomePr
 LUCI_PKGARCH:=all
 LUCI_DEPENDS:= \
 	+firewall4 \
-	+ucode-mod-digest
+	+ucode-mod-digest \
+	+flock
 
 PKG_NAME:=luci-app-re-homeproxy
 PKG_VERSION:=1

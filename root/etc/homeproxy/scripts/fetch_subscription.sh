@@ -23,6 +23,12 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 if [ "$MODE" = direct ]; then
+	# Never mutate global firewall sets to simulate direct routing. If the core is
+	# active and no process-scoped WAN adapter exists, fail closed.
+	if pgrep -f '/usr/bin/hiddify-core' >/dev/null 2>&1 || pgrep -f '/usr/bin/sing-box' >/dev/null 2>&1; then
+		echo 'stage=route error=direct_isolation_unavailable' >&2
+		exit 4
+	fi
 	direct_ready=0
 	authority=${URL#*://}
 	authority=${authority%%/*}
@@ -89,6 +95,11 @@ if [ "$MODE" = direct ]; then
 		fi
 		MODE=direct-native
 	fi
+fi
+
+if [ "$MODE" = outbound ]; then
+	echo 'stage=route error=selected_outbound_not_available' >&2
+	exit 5
 fi
 
  : > "$TMP.body"

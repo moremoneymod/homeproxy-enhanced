@@ -1134,8 +1134,8 @@ function parse_uri(uri) {
 
 function main() {
 	for (let source in sources) {
-		const fetchViaProxy = source['.name'] ? source.fetch_mode === 'proxy' : via_proxy === '1';
-		const fetchMode = fetchViaProxy ? 'proxy' : 'direct';
+		let fetchMode = source['.name'] ? (source.fetch_mode || 'direct') : (via_proxy === '1' ? 'system' : 'direct');
+		if (fetchMode === 'proxy') fetchMode = 'system';
 		const url = replace(source.url, /#.*$/, '');
 		const sourceName = source['.name'] || 'legacy';
 		const groupHash = md5(source['.name'] ? `source:${source['.name']}` : url);
@@ -1187,7 +1187,7 @@ function main() {
 
 		if (isEmpty(nodes) && !source['.name']) {
 			/* Fallback: fetch with configured user_agent */
-			res = wGET(url, user_agent);
+			res = wGET(url, user_agent, headers, fetchMode);
 
 			/* Empty or HTML response: server may require /raw suffix (e.g. HAPP-style
 			 * subscription servers that serve a web page by default). */
@@ -1195,7 +1195,7 @@ function main() {
 				const rawUrl = replace(url, /\/*$/, '') + '/raw';
 				log(sprintf('%s from %s, retrying with /raw.',
 					isEmpty(res) ? 'Empty response' : 'HTML response', sourceName));
-				const rawRes = wGET(rawUrl, user_agent);
+				const rawRes = wGET(rawUrl, user_agent, headers, fetchMode);
 				if (!isEmpty(rawRes) && !match(rawRes, /^\s*</))
 					res = rawRes;
 			}

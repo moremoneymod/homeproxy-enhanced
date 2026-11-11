@@ -19,7 +19,7 @@ test('named sources use a persisted v2rayNG User-Agent by default', () => {
 });
 
 test('named sources default to direct provider downloads with provider-compatible Accept', () => {
-  assert.match(source, /source\.fetch_mode === 'proxy'/);
+  assert.match(source, /source\.fetch_mode \|\| 'direct'/);
   assert.match(source, /Accept: application\/json, text\/plain, \*\/\*/);
   assert.match(nodeView, /sourceOption\.value\('direct', _\('Internet provider \(direct\)'\)\)/);
   assert.match(nodeView, /sourceOption\.default = 'direct'/);
@@ -62,6 +62,14 @@ test('shell launcher captures ucode loader failures before the updater starts', 
 test('master installer installs the ucode digest dependency explicitly', () => {
   assert.match(installer, /apk add ucode-mod-digest/);
   assert.match(installer, /opkg install ucode-mod-digest/);
+});
+
+test('updater requires single-writer flock and explicit route modes', () => {
+  assert.match(updateLauncher, /flock -n 9/);
+  assert.match(source, /source\.fetch_mode \|\| 'direct'/);
+  assert.match(source, /wGET\(url, user_agent, headers, fetchMode\)/);
+  assert.match(nodeView, /sourceOption\.value\('outbound'/);
+  assert.match(nodeView, /fetch_outbound/);
 });
 
 test('routing ports default is empty rather than invalid literal all', () => {
